@@ -1,6 +1,7 @@
 from torch.autograd import Variable
 import torch
 
+
 def train_vae(train_loader, model, optimizer):
     # set loss to 0
     train_loss = 0
@@ -33,16 +34,18 @@ def train_vae(train_loader, model, optimizer):
 
     return model, train_loss, train_re, train_kl
 
+
 def log_Normal_diag(x, mean, log_var, average=False, dim=None):
-    log_normal = -0.5 * ( log_var + torch.pow( x - mean, 2 ) / torch.exp( log_var ) )
+    log_normal = -0.5 * (log_var + torch.pow(x - mean, 2) / torch.exp(log_var))
     if average:
-        return torch.mean( log_normal, dim )
+        return torch.mean(log_normal, dim)
     else:
-        return torch.sum( log_normal, dim )
+        return torch.sum(log_normal, dim)
+
 
 def log_Normal_standard(x, average=False, dim=None):
-    log_normal = -0.5 * torch.pow( x , 2 )
+    log_normal = -0.5 * torch.pow(x, 2)
     if average:
-        return torch.mean( log_normal, dim )
+        return torch.mean(log_normal, dim)
     else:
-        return torch.sum( log_normal, dim )
+        return torch.sum(log_normal, dim)

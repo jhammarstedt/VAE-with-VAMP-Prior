@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 class VanillaVAE(nn.Module):
     def __init__(self, input_size: int, hidden_dims: int, latent_dims: int):
         super(VanillaVAE, self).__init__()
-
+        self.input_size = input_size
+        self.hidden_dims = hidden_dims
         # encoder p(z|x) - encode our input into the latent space with hopes to get as good representation as possible in less dimensions
         self.encoder = nn.Sequential(
             nn.Linear(input_size, hidden_dims),
@@ -89,12 +90,12 @@ class VanillaVAE(nn.Module):
         recon_error = loss(reconstruction, true_input)  # temp
 
         # get prior
-        prior_type = 'vamp'  # should be and argument in the beginning
+        prior_type = 'standard'  # should be and argument in the beginning
 
-        q_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
-        # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
+        p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
+        #q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
 
-        p_z = torch.mean(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
+        q_z = torch.mean(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
                          dim=dim)  # the approximated dist, should it be mean or not?
 
         # p_z_ = log_Normal_standard(z_sample, dim=1)
@@ -118,11 +119,13 @@ class VanillaVAE(nn.Module):
         return loss, recon_error, KL
 
     def vamp_prior(self, z):
-        K = 200  # nbr of psudo inputs
+        K = 200  # nbr of psudo inputs/components
 
         init_inp = torch.eye(K, K, requires_grad=False)  # initializing psudo inputs to just be identity
 
-        self.psudo_mapper = psudo_inp_mapping(in_size=input_shape, out_size=output_shape)  # ! fix this
+
+        #mapper maps from nbr of components to input size- in case of mnist 200-> 784
+        self.psudo_mapper = psudo_inp_mapping(in_size=K, out_size=self.input_size)  # ! fix this
         psudo_input = self.psudo_mapper(init_inp)  # learn how to get best mapping
         encoded_psudo_inp = self.encode(psudo_input)  # running the encoiding with the psi params
 
@@ -158,8 +161,8 @@ class psudo_inp_mapping(nn.Module):
     def __init__(self, in_size, out_size):
         super(psudo_inp_mapping, self).__init__()
 
-        self.mapper = nn.Sequential(nn.Linear(int(in_size), int(out_size), bias=True),
-                                    nn.Hardtanh(min_val=0.0  , max_val=1.0))
+        self.mapper = nn.Sequential(nn.Linear(int(in_size), int(out_size), bias=False),
+                                    nn.Hardtanh(min_val=0.0, max_val=1.0))
 
     def forward(self, x):
         return self.mapper(x)
