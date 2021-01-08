@@ -35,8 +35,6 @@ class VanillaVAE(nn.Module):
         elif args['input_type'] == 'binary':
             self.enc_mu = nn.Linear(hidden_dims, latent_dims)
 
-
-
         # decoder q(x|z)
         self.decoder = nn.Sequential(
             nn.Linear(latent_dims, hidden_dims),
@@ -111,7 +109,7 @@ class VanillaVAE(nn.Module):
 
         loss = recon_error + beta * KL
 
-        loss = recon_error + beta*KL
+        loss = recon_error + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
@@ -129,7 +127,7 @@ class VanillaVAE(nn.Module):
         psudo_input = self.psudo_mapper(init_inp)  # learn how to get best mapping
         prior_mean, prior_logvar = self.encode(psudo_input)  # running the encoding with the psi params
 
-        ##
+        # ! --- Need to change, their code
         # expand z
         z_expand = z.unsqueeze(1)
         means = prior_mean.unsqueeze(0)
@@ -140,11 +138,10 @@ class VanillaVAE(nn.Module):
 
         # calculte log-sum-exp
         log_prior = a_max + torch.log(torch.sum(torch.exp(a - a_max.unsqueeze(1)), 1))  # MB
-        ##
+        # ! ---
+
         return log_prior
 
-    def get_psudo_inputs(self):
-        pass
 
     def get_z_prior(self, type_of_prior, z_sample, dim):
         if type_of_prior == 'standard':
@@ -175,15 +172,15 @@ class psudo_inp_mapping(nn.Module):
         self.mapper = nn.Linear(int(in_size), int(out_size), bias=False)
         self.activate = nn.Hardtanh(min_val=0.0, max_val=1.0)
 
-        # nn.init.normal_(self.mapper.inear.weight,0.05,0.01)
-        pseudoinputs_mean = 0.05
-        pseudoinputs_std = 0.01
         # self.mapper.apply(normal_init(mapper.))
         # normal_init(self.mapper.linear, pseudoinputs_mean, pseudoinputs_std)
 
     def forward(self, x):
+        pseudoinputs_mean = 0.05
+        pseudoinputs_std = 0.01
         X = self.mapper(x)
-        self.mapper.weight.data.normal_(0.05, 0.1) #initialize the weights for the linear layer
-        X = self.activate(X) #activate with Hardtanh
+        self.mapper.weight.data.normal_(pseudoinputs_mean,
+                                        pseudoinputs_std)  # initialize the weights for the linear layer
+        X = self.activate(X)  # activate with Hardtanh
 
         return X
