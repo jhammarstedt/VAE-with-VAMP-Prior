@@ -90,7 +90,6 @@ class VanillaVAE(nn.Module):
         prior_type = 'standard'  # should be and argument in the beginning
 
         p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
-        #q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
 
         q_z = torch.mean(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
                          dim=dim)  # the approximated dist, should it be mean or not?
@@ -103,20 +102,11 @@ class VanillaVAE(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
 
-        # kld_loss = torch.mean(-0.5 * torch.sum(1 + z_lvar - z_mu ** 2 - z_lvar.exp(), dim = 1), dim = 0)
-        loss = recon_error + beta * KL
-
-        # loss = recon_error + beta *KL #the loss is the lower bound we will later use
-
-        #kld_loss = torch.mean(-0.5 * torch.sum(1 + z_lvar - z_mu ** 2 - z_lvar.exp(), dim = 1), dim = 0)
         loss = recon_error + beta*KL
-        #loss = recon_error + beta *KL #the loss is the lower bound we will later use
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
-        # print(KL)
-        if KL < -100:
-            KL = KL
+
         return loss, recon_error, KL
 
     def vamp_prior(self, z):
@@ -139,8 +129,6 @@ class VanillaVAE(nn.Module):
         pass
 
     def get_z_prior(self, type_of_prior, z_sample, dim):
-
-    def get_z_prior(self,type_of_prior,z,dim):
         if type_of_prior == 'standard':
             log_p = torch.mean(-0.5 * torch.pow(z_sample, 2),
                                dim=dim)  # get the prior that we are pulling the posterior towards by KL

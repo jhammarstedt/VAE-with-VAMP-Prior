@@ -8,13 +8,11 @@ def train_vae(train_loader, model, optimizer):
     train_kl = 0
     # set model in training mode
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
     model.to(device)
     model.train()
 
     for x, y in train_loader:
-        x.to(device)
-        y.to(device)
+        x = x.to(device)
 
         # reset gradients
         optimizer.zero_grad()
