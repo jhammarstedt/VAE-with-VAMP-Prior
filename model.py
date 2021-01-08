@@ -21,15 +21,15 @@ class VanillaVAE(nn.Module):
         #         GatedDense(input_size, hidden_dims),
         #         GatedDense(hidden_dims, hidden_dims)
         # )
-        
+
         # The expected value and variance of z given the input are computed through NNs
-        self.enc_mu = nn.Linear(hidden_dims, latent_dims) 
+        self.enc_mu = nn.Linear(hidden_dims, latent_dims)
         self.enc_logvar = nn.Sequential(
             nn.Linear(hidden_dims, latent_dims),
             nn.Hardtanh(min_val=-6., max_val=2.)
         )
 
-        #decoder q(x|z) 
+        #decoder q(x|z)
         self.decoder = nn.Sequential(
             nn.Linear(latent_dims, hidden_dims),
             nn.Tanh(),
@@ -48,7 +48,7 @@ class VanillaVAE(nn.Module):
             if isinstance(m, nn.Linear):
                 he_init(m)
 
-        
+
     def encode(self, x):
         x = self.encoder(x)  # encode the data to reduce dimensionality
         mu = self.enc_mu(x)  # get the expected value in the latent space w.r.t x
@@ -56,15 +56,12 @@ class VanillaVAE(nn.Module):
         return mu, logvar
 
     def decode(self, x):
-        return self.decoder(x) 
+        return self.decoder(x)
 
     def reparametrization(self, mu, logvar):
-        # std = torch.exp(0.5 * logvar)
-        # eps = torch.randn_like(std)
-        # return eps * std + mu
-        eps = torch.FloatTensor(logvar.size()).normal_()
-        eps = Variable(eps)
-        return eps.mul(logvar).add_(mu)
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
 
     def get_loss(self,data,beta=0.1,choice_of_prior='standard'):
         """
@@ -104,7 +101,7 @@ class VanillaVAE(nn.Module):
 
         #kld_loss = torch.mean(-0.5 * torch.sum(1 + z_lvar - z_mu ** 2 - z_lvar.exp(), dim = 1), dim = 0)
         loss = recon_error + beta*KL
-        #loss = recon_error + beta *KL #the loss is the lower bound we will later use 
+        #loss = recon_error + beta *KL #the loss is the lower bound we will later use
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
@@ -117,7 +114,7 @@ class VanillaVAE(nn.Module):
     def get_psudo_inputs(self):
         pass
 
-    
+
     def get_z_prior(self,type_of_prior,z,dim):
         if type_of_prior == 'standard':
             log_p = torch.mean(-0.5 * torch.pow(z, 2 ),dim=dim) #standard normal prior
@@ -129,7 +126,7 @@ class VanillaVAE(nn.Module):
 
         return log_p
 
-        
+
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrization(mu, logvar)

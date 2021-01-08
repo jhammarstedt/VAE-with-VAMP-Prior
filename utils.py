@@ -1,5 +1,5 @@
-from torch.autograd import Variable
 import torch
+
 
 def train_vae(train_loader, model, optimizer):
     # set loss to 0
@@ -7,11 +7,14 @@ def train_vae(train_loader, model, optimizer):
     train_re = 0
     train_kl = 0
     # set model in training mode
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
+    model.to(device)
     model.train()
 
-    for data, target in train_loader:
-        data, target = data, target
-        x = data
+    for x, y in train_loader:
+        x.to(device)
+        y.to(device)
 
         # reset gradients
         optimizer.zero_grad()
@@ -33,16 +36,18 @@ def train_vae(train_loader, model, optimizer):
 
     return model, train_loss, train_re, train_kl
 
+
 def log_Normal_diag(x, mean, log_var, average=False, dim=None):
-    log_normal = -0.5 * ( log_var + torch.pow( x - mean, 2 ) / torch.exp( log_var ) )
+    log_normal = -0.5 * (log_var + torch.pow(x - mean, 2) / torch.exp(log_var))
     if average:
-        return torch.mean( log_normal, dim )
+        return torch.mean(log_normal, dim)
     else:
-        return torch.sum( log_normal, dim )
+        return torch.sum(log_normal, dim)
+
 
 def log_Normal_standard(x, average=False, dim=None):
-    log_normal = -0.5 * torch.pow( x , 2 )
+    log_normal = -0.5 * torch.pow(x, 2)
     if average:
-        return torch.mean( log_normal, dim )
+        return torch.mean(log_normal, dim)
     else:
-        return torch.sum( log_normal, dim )
+        return torch.sum(log_normal, dim)
