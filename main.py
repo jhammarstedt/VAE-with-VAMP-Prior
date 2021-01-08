@@ -24,7 +24,7 @@ train_loss_history = []
 train_re_history = []
 train_kl_history = []
 
-model = VanillaVAE(input_size=input_size[1], hidden_dims=100, latent_dims=100)
+model = VanillaVAE(input_size=input_size[1], hidden_dims=100, latent_dims=10)
 optimizer = Adam(model.parameters(), lr=args['lr'])
 
 for epoch in range(1, args['epochs'] + 1):
