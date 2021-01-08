@@ -5,6 +5,7 @@ from torch.nn import functional as F
 from utils import *
 from nn import *
 import matplotlib.pyplot as plt
+import math
 
 
 class VanillaVAE(nn.Module):
@@ -67,7 +68,7 @@ class VanillaVAE(nn.Module):
         eps = Variable(eps)
         return eps.mul(logvar).add_(mu)
 
-    def get_loss(self, data, beta=0.1, choice_of_prior='standard'):
+    def get_loss(self, data, beta=0.5, choice_of_prior='standard'):
         """
         Computes the VAE loss function.
         KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
@@ -90,10 +91,10 @@ class VanillaVAE(nn.Module):
         recon_error = loss(reconstruction, true_input)  # temp
 
         # get prior
-        prior_type = 'standard'  # should be and argument in the beginning
+        prior_type = 'vamp'  # should be and argument in the beginning
 
         p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
-        #q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
+        # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
 
         q_z = torch.mean(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
                          dim=dim)  # the approximated dist, should it be mean or not?
@@ -106,10 +107,8 @@ class VanillaVAE(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
 
-        # kld_loss = torch.mean(-0.5 * torch.sum(1 + z_lvar - z_mu ** 2 - z_lvar.exp(), dim = 1), dim = 0)
         loss = recon_error + beta * KL
 
-        # loss = recon_error + beta *KL #the loss is the lower bound we will later use
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
@@ -123,16 +122,25 @@ class VanillaVAE(nn.Module):
 
         init_inp = torch.eye(K, K, requires_grad=False)  # initializing psudo inputs to just be identity
 
-
-        #mapper maps from nbr of components to input size- in case of mnist 200-> 784
-        self.psudo_mapper = psudo_inp_mapping(in_size=K, out_size=self.input_size)  # ! fix this
+        # mapper maps from nbr of components to input size- in case of mnist 200-> 784
+        self.psudo_mapper = psudo_inp_mapping(in_size=K,
+                                              out_size=self.input_size)  # ? do we need to initialize the network like they do in the paper
         psudo_input = self.psudo_mapper(init_inp)  # learn how to get best mapping
-        encoded_psudo_inp = self.encode(psudo_input)  # running the encoiding with the psi params
+        prior_mean, prior_logvar = self.encode(psudo_input)  # running the encoding with the psi params
 
-        prior_mean = self.enc_mu(encoded_psudo_inp)
-        prior_logvar = self.enc_logvar(encoded_psudo_inp)
+        ##
+        # expand z
+        z_expand = z.unsqueeze(1)
+        means = prior_mean.unsqueeze(0)
+        logvars = prior_logvar.unsqueeze(0)
 
-        print('hi')
+        a = log_Normal_diag(z_expand, means, logvars, dim=2) - math.log(K)  # MB x C
+        a_max, _ = torch.max(a, 1)  # MB x 1
+
+        # calculte log-sum-exp
+        log_prior = a_max + torch.log(torch.sum(torch.exp(a - a_max.unsqueeze(1)), 1))  # MB
+        ##
+        return log_prior
 
     def get_psudo_inputs(self):
         pass
@@ -161,8 +169,20 @@ class psudo_inp_mapping(nn.Module):
     def __init__(self, in_size, out_size):
         super(psudo_inp_mapping, self).__init__()
 
-        self.mapper = nn.Sequential(nn.Linear(int(in_size), int(out_size), bias=False),
-                                    nn.Hardtanh(min_val=0.0, max_val=1.0))
+        # self.mapper = nn.Sequential(nn.Linear(int(in_size), int(out_size), bias=False),
+        #                             nn.Hardtanh(min_val=0.0, max_val=1.0))
+        self.mapper = nn.Linear(int(in_size), int(out_size), bias=False)
+        self.activate = nn.Hardtanh(min_val=0.0, max_val=1.0)
+
+        # nn.init.normal_(self.mapper.inear.weight,0.05,0.01)
+        pseudoinputs_mean = 0.05
+        pseudoinputs_std = 0.01
+        # self.mapper.apply(normal_init(mapper.))
+        # normal_init(self.mapper.linear, pseudoinputs_mean, pseudoinputs_std)
 
     def forward(self, x):
-        return self.mapper(x)
+        X = self.mapper(x)
+        self.mapper.weight.data.normal_(0.05, 0.1) #initialize the weights for the linear layer
+        X = self.activate(X) #activate with Hardtanh
+
+        return X
