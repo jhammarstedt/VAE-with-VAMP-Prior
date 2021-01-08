@@ -9,7 +9,7 @@ import math
 
 
 class VanillaVAE(nn.Module):
-    def __init__(self, input_size: int, hidden_dims: int, latent_dims: int):
+    def __init__(self, input_size: int, hidden_dims: int, latent_dims: int, args: dict):
         super(VanillaVAE, self).__init__()
         self.input_size = input_size
         self.hidden_dims = hidden_dims
@@ -26,11 +26,16 @@ class VanillaVAE(nn.Module):
         # )
 
         # The expected value and variance of z given the input are computed through NNs
-        self.enc_mu = nn.Linear(hidden_dims, latent_dims)
-        self.enc_logvar = nn.Sequential(
-            nn.Linear(hidden_dims, latent_dims),
-            nn.Hardtanh(min_val=-6., max_val=2.)
-        )
+        if args['input_type'] == 'continuous':
+            self.enc_mu = nn.Linear(hidden_dims, latent_dims)
+            self.enc_logvar = nn.Sequential(
+                nn.Linear(hidden_dims, latent_dims),
+                nn.Hardtanh(min_val=-6., max_val=2.)
+            )
+        elif args['input_type'] == 'binary':
+            self.enc_mu = nn.Linear(hidden_dims, latent_dims)
+
+
 
         # decoder q(x|z)
         self.decoder = nn.Sequential(
@@ -61,12 +66,9 @@ class VanillaVAE(nn.Module):
         return self.decoder(x)
 
     def reparametrization(self, mu, logvar):
-        # std = torch.exp(0.5 * logvar)
-        # eps = torch.randn_like(std)
-        # return eps * std + mu
-        eps = torch.FloatTensor(logvar.size()).normal_()
-        eps = Variable(eps)
-        return eps.mul(logvar).add_(mu)
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
 
     def get_loss(self, data, beta=0.5, choice_of_prior='standard'):
         """
@@ -109,12 +111,11 @@ class VanillaVAE(nn.Module):
 
         loss = recon_error + beta * KL
 
+        loss = recon_error + beta*KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
-        # print(KL)
-        if KL < -100:
-            KL = KL
+
         return loss, recon_error, KL
 
     def vamp_prior(self, z):
