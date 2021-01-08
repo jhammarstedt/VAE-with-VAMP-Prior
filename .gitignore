@@ -131,4 +131,6 @@ dmypy.json
 #ignore data folder
 data/
 
+runs/
+
 .idea/*

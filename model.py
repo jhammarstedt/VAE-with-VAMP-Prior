@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 
 class VanillaVAE(nn.Module):
-    def __init__(self, input_size: int, hidden_dims: int, latent_dims: int):
+    def __init__(self, input_size: int, hidden_dims: int, latent_dims: int, args: dict):
         super(VanillaVAE, self).__init__()
         self.input_size = input_size
         self.hidden_dims = hidden_dims
@@ -25,11 +25,16 @@ class VanillaVAE(nn.Module):
         # )
 
         # The expected value and variance of z given the input are computed through NNs
-        self.enc_mu = nn.Linear(hidden_dims, latent_dims)
-        self.enc_logvar = nn.Sequential(
-            nn.Linear(hidden_dims, latent_dims),
-            nn.Hardtanh(min_val=-6., max_val=2.)
-        )
+        if args['input_type'] == 'continuous':
+            self.enc_mu = nn.Linear(hidden_dims, latent_dims)
+            self.enc_logvar = nn.Sequential(
+                nn.Linear(hidden_dims, latent_dims),
+                nn.Hardtanh(min_val=-6., max_val=2.)
+            )
+        elif args['input_type'] == 'binary':
+            self.enc_mu = nn.Linear(hidden_dims, latent_dims)
+
+
 
         # decoder q(x|z)
         self.decoder = nn.Sequential(
@@ -141,7 +146,6 @@ class VanillaVAE(nn.Module):
             raise TypeError("Need to specify the type of prior")
 
         return log_p
-
 
     def forward(self, x):
         mu, logvar = self.encode(x)
