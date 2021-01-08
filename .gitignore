@@ -131,4 +131,4 @@ dmypy.json
 #ignore data folder
 data/
 
-./runs/
+runs/
