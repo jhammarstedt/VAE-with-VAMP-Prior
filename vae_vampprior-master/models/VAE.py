@@ -6,21 +6,22 @@ import math
 
 from scipy.misc import logsumexp
 
-
 import torch
 import torch.utils.data
 import torch.nn as nn
 from torch.nn import Linear
 from torch.autograd import Variable
 
-from utils.distributions import log_Bernoulli, log_Normal_diag, log_Normal_standard, log_Logistic_256
-from utils.visual_evaluation import plot_histogram
-from utils.nn import he_init, GatedDense, NonLinear
+from vae_vampprior-master.utils.distributions import log_Bernoulli, log_Normal_diag, log_Normal_standard, log_Logistic_256
+from vae_vampprior-master.utils.visual_evaluation import plot_histogram
+from vae_vampprior-master.utils.nn import he_init, GatedDense, NonLinear
 
 from models.Model import Model
+
+
 # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-#=======================================================================================================================
+# =======================================================================================================================
 class VAE(Model):
     def __init__(self, args):
         super(VAE, self).__init__(args)
@@ -32,7 +33,7 @@ class VAE(Model):
         )
 
         self.q_z_mean = Linear(300, self.args.z1_size)
-        self.q_z_logvar = NonLinear(300, self.args.z1_size, activation=nn.Hardtanh(min_val=-6.,max_val=2.))
+        self.q_z_logvar = NonLinear(300, self.args.z1_size, activation=nn.Hardtanh(min_val=-6.,E max_val=2.))
 
         # decoder: p(x | z)
         self.p_x_layers = nn.Sequential(
@@ -44,7 +45,8 @@ class VAE(Model):
             self.p_x_mean = NonLinear(300, np.prod(self.args.input_size), activation=nn.Sigmoid())
         elif self.args.input_type == 'gray' or self.args.input_type == 'continuous':
             self.p_x_mean = NonLinear(300, np.prod(self.args.input_size), activation=nn.Sigmoid())
-            self.p_x_logvar = NonLinear(300, np.prod(self.args.input_size), activation=nn.Hardtanh(min_val=-4.5,max_val=0))
+            self.p_x_logvar = NonLinear(300, np.prod(self.args.input_size),
+                                        activation=nn.Hardtanh(min_val=-4.5, max_val=0))
 
         # weights initialization
         for m in self.modules():
@@ -114,12 +116,12 @@ class VAE(Model):
 
                 a_tmp, _, _ = self.calculate_loss(x)
 
-                a.append( -a_tmp.cpu().data.numpy() )
+                a.append(-a_tmp.cpu().data.numpy())
 
             # calculate max
             a = np.asarray(a)
             a = np.reshape(a, (a.shape[0] * a.shape[1], 1))
-            likelihood_x = logsumexp( a )
+            likelihood_x = logsumexp(a)
             likelihood_test.append(likelihood_x - np.log(len(a)))
 
         likelihood_test = np.array(likelihood_test)
@@ -139,7 +141,7 @@ class VAE(Model):
         for i in range(I):
             x = X_full[i * MB: (i + 1) * MB].view(-1, np.prod(self.args.input_size))
 
-            loss, RE, KL = self.calculate_loss(x,average=True)
+            loss, RE, KL = self.calculate_loss(x, average=True)
 
             RE_all += RE.cpu().data[0]
             KL_all += KL.cpu().data[0]
@@ -152,7 +154,7 @@ class VAE(Model):
     # ADDITIONAL METHODS
     def generate_x(self, N=25):
         if self.args.prior == 'standard':
-            z_sample_rand = Variable( torch.FloatTensor(N, self.args.z1_size).normal_() )
+            z_sample_rand = Variable(torch.FloatTensor(N, self.args.z1_size).normal_())
             if self.args.cuda:
                 z_sample_rand = z_sample_rand.cuda()
 
@@ -184,7 +186,7 @@ class VAE(Model):
         if self.args.input_type == 'binary':
             x_logvar = 0.
         else:
-            x_mean = torch.clamp(x_mean, min=0.+1./512., max=1.-1./512.)
+            x_mean = torch.clamp(x_mean, min=0. + 1. / 512., max=1. - 1. / 512.)
             x_logvar = self.p_x_logvar(z)
         return x_mean, x_logvar
 
