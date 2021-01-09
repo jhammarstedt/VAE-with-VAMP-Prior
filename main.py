@@ -11,6 +11,8 @@ args = {
     'epochs': 20,
     'lr': 0.0001,
     'input_type': 'continuous',
+    'prior': 'vamp', #or standard
+    'psudo_inp': 200 #ignore if standard
 }
 
 train_loader, val_loader, test_loader, input_size = load_dynamic_mnist(args['batch_size'])

@@ -14,6 +14,10 @@ class VanillaVAE(nn.Module):
         self.input_size = input_size
         self.hidden_dims = hidden_dims
         self.latent_dims =latent_dims
+
+        self.priors = [args['prior'], args['psudo_inp']]
+
+
         # encoder p(z|x) - encode our input into the latent space with hopes to get as good representation as possible in less dimensions
         self.encoder = nn.Sequential(
             nn.Linear(input_size, hidden_dims),
@@ -92,7 +96,7 @@ class VanillaVAE(nn.Module):
         recon_error = loss(reconstruction, true_input)  # temp
 
         # get prior
-        prior_type = 'standard'  # should be and argument in the beginning
+        prior_type = self.priors[0] # should be and argument in the beginning
 
         p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
         # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
@@ -108,8 +112,6 @@ class VanillaVAE(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
 
-
-
         loss = recon_error + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
@@ -118,7 +120,7 @@ class VanillaVAE(nn.Module):
         return loss, recon_error, KL
 
     def vamp_prior(self, z):
-        K = 200  # nbr of psudo inputs/components
+        K = self.priors[1]  # nbr of psudo inputs/components
 
         init_inp = torch.eye(K, K, requires_grad=False)  # initializing psudo inputs to just be identity
 
@@ -134,7 +136,10 @@ class VanillaVAE(nn.Module):
         means = prior_mean.unsqueeze(0)
         logvars = prior_logvar.unsqueeze(0)
 
-        a = log_Normal_diag(z_expand, means, logvars, dim=2) - math.log(K)  # MB x C
+        a = torch.sum(-0.5 * (logvars + torch.pow(z_expand - means, 2) / torch.exp(logvars)),
+                      dim=2) - math.log(K)
+
+        #a = log_Normal_diag(z_expand, means, logvars, dim=2) - math.log(K)  # MB x C
         a_max, _ = torch.max(a, 1)  # MB x 1
 
         # calculte log-sum-exp
