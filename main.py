@@ -1,5 +1,5 @@
 from model import VAE_model
-from load_data import load_dynamic_mnist
+from load_data import load_dataset
 from torch.optim import Adam
 from utils import train_loop, val_loop
 from torch.utils.tensorboard import SummaryWriter
@@ -10,7 +10,7 @@ args = {
     'epochs': 20,
     'lr': 0.0001,
     'hidden_dims': 100,
-    'latent_dims': 10
+    'latent_dims': 10,
     'input_type': 'continuous',  # ['binary','continuous']
     'prior': 'vamp',  # ['vamp','standard']
     'psudo_inp': 200,  # ignore if standard
