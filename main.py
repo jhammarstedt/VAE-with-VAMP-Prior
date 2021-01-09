@@ -10,7 +10,8 @@ args = {
     'input_size': [1, 28, 28],
     'epochs': 20,
     'lr': 0.0001,
-    'input_type': 'continuous',
+    'input_type': 'continuous',  # ['binary', 'continuous']
+    'prior': 'vamp',  # ['vamp', 'standard']
 }
 
 train_loader, val_loader, test_loader, input_size = load_dynamic_mnist(args['batch_size'])
