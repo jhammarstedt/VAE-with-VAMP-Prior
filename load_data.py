@@ -1,6 +1,3 @@
-"""
-
-"""
 
 import pickle
 import numpy as np
@@ -11,6 +8,16 @@ import os
 from math import ceil
 
 
+def load_dataset(args):
+    data_name = args['dataset']
+
+    if data_name == 'dynamicMnist':
+        return load_dynamic_mnist(args['batch_size'])
+    elif data_name == 'omniglot':
+        raise NotImplementedError()
+    
+    else
+        raise Exception('Invalid Dataset name!')
 
 
 def read_pickle(file_name):

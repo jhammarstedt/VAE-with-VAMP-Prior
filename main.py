@@ -1,5 +1,5 @@
 from model import VanillaVAE
-from load_data import load_dynamic_mnist
+from load_data import load_dataset
 from torch.optim import Adam
 from utils import train_loop, val_loop
 from torch.utils.tensorboard import SummaryWriter
@@ -10,12 +10,13 @@ args = {
     'input_size': [1, 28, 28],
     'epochs': 20,
     'lr': 0.0001,
-    'input_type': 'continuous', #['binary','continious']
-    'prior': 'vamp', #['vamp','standard']
-    'psudo_inp': 200 #ignore if standard
+    'input_type': 'continuous',  # ['binary','continuous']
+    'prior': 'vamp',  # ['vamp','standard']
+    'psudo_inp': 200,  # ignore if standard
+    'dataset': 'dynamicMnist',  # ['dynamicMnist', 'omniglot']
 }
 
-train_loader, val_loader, test_loader, input_size = load_dynamic_mnist(args['batch_size'])
+train_loader, val_loader, test_loader, input_size = load_dataset(args)
 
 writer = SummaryWriter()
 
