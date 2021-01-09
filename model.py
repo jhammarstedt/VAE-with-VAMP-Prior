@@ -13,6 +13,7 @@ class VanillaVAE(nn.Module):
         super(VanillaVAE, self).__init__()
         self.input_size = input_size
         self.hidden_dims = hidden_dims
+        self.latent_dims =latent_dims
         # encoder p(z|x) - encode our input into the latent space with hopes to get as good representation as possible in less dimensions
         self.encoder = nn.Sequential(
             nn.Linear(input_size, hidden_dims),
@@ -68,7 +69,7 @@ class VanillaVAE(nn.Module):
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    def get_loss(self, data, beta=0.5, choice_of_prior='standard'):
+    def get_loss(self, data, beta=0.7, choice_of_prior='standard'):
         """
         Computes the VAE loss function.
         KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
@@ -91,12 +92,12 @@ class VanillaVAE(nn.Module):
         recon_error = loss(reconstruction, true_input)  # temp
 
         # get prior
-        prior_type = 'vamp'  # should be and argument in the beginning
+        prior_type = 'standard'  # should be and argument in the beginning
 
         p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
         # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
 
-        q_z = torch.mean(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
+        q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
                          dim=dim)  # the approximated dist, should it be mean or not?
 
         # p_z_ = log_Normal_standard(z_sample, dim=1)
@@ -107,7 +108,7 @@ class VanillaVAE(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
 
-        loss = recon_error + beta * KL
+
 
         loss = recon_error + beta * KL
         loss = torch.mean(loss)
@@ -149,9 +150,7 @@ class VanillaVAE(nn.Module):
                                dim=dim)  # get the prior that we are pulling the posterior towards by KL
         elif type_of_prior == 'vamp':
             log_p = self.vamp_prior(z_sample)
-
             # implement vamp prior
-            pass
         else:
             raise TypeError("Need to specify the type of prior")
 
