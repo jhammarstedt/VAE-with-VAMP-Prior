@@ -10,8 +10,8 @@ args = {
     'input_size': [1, 28, 28],
     'epochs': 20,
     'lr': 0.0001,
-    'input_type': 'continuous',
-    'prior': 'vamp', #or standard
+    'input_type': 'continuous', #['binary','continious']
+    'prior': 'vamp', #['vamp','standard']
     'psudo_inp': 200 #ignore if standard
 }
 

@@ -14,8 +14,9 @@ class VanillaVAE(nn.Module):
         self.input_size = input_size
         self.hidden_dims = hidden_dims
         self.latent_dims =latent_dims
-
-        self.priors = [args['prior'], args['psudo_inp']]
+        self.input_type = args['input_type']
+        self.priors = args['prior']
+        self.psudo_input_size = args['psudo_inp']
 
 
         # encoder p(z|x) - encode our input into the latent space with hopes to get as good representation as possible in less dimensions
@@ -25,19 +26,15 @@ class VanillaVAE(nn.Module):
             nn.Linear(hidden_dims, hidden_dims),  # here we lower the dimensions to match our latent space
             nn.Tanh(),
         )
-        # self.encoder = nn.Sequential(
-        #         GatedDense(input_size, hidden_dims),
-        #         GatedDense(hidden_dims, hidden_dims)
-        # )
 
         # The expected value and variance of z given the input are computed through NNs
-        if args['input_type'] == 'continuous':
+        if self.input_type == 'continuous':
             self.enc_mu = nn.Linear(hidden_dims, latent_dims)
             self.enc_logvar = nn.Sequential(
                 nn.Linear(hidden_dims, latent_dims),
                 nn.Hardtanh(min_val=-6., max_val=2.)
             )
-        elif args['input_type'] == 'binary':
+        elif self.input_type == 'binary':
             self.enc_mu = nn.Linear(hidden_dims, latent_dims)
 
         # decoder q(x|z)
@@ -46,10 +43,20 @@ class VanillaVAE(nn.Module):
             nn.Tanh(),
             nn.Linear(hidden_dims, input_size),  # here we increase the dimensions to match the original image
             nn.Tanh()
-            # GatedDense(latent_dims, hidden_dims),
-            # GatedDense(hidden_dims, hidden_dims),
-            # nn.Linear(hidden_dims, input_size),
         )
+
+        if self.prior == 'vamp':
+            self.K = 200  # nbr of psudo inputs/components
+            self.pseudo_input = torch.eye(self.K, self.K, requires_grad=False)  # initializing psudo inputs to just be identity
+
+            # mapper maps from nbr of components to input size- in case of mnist 200-> 784
+            self.psudo_mapper = PsudoInpMapping(in_size=self.K, out_size=self.input_size)  # ? do we need to initialize the network like they do in the paper
+
+
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.psudo_mapper.to(device)
+            self.pseudo_input = self.pseudo_input.to(device)
 
         def he_init(m):
             s = np.sqrt(2. / m.in_features)
@@ -95,10 +102,8 @@ class VanillaVAE(nn.Module):
         loss = nn.MSELoss(reduction='sum')
         recon_error = loss(reconstruction, true_input)  # temp
 
-        # get prior
-        prior_type = self.priors[0] # should be and argument in the beginning
 
-        p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
+        p_z = self.get_z_prior(z_sample=z_sample, dim=dim)
         # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
 
         q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
@@ -120,14 +125,9 @@ class VanillaVAE(nn.Module):
         return loss, recon_error, KL
 
     def vamp_prior(self, z):
-        K = self.priors[1]  # nbr of psudo inputs/components
+        K = self.psudo_input_size  # nbr of psudo inputs/components
 
-        init_inp = torch.eye(K, K, requires_grad=False)  # initializing psudo inputs to just be identity
-
-        # mapper maps from nbr of components to input size- in case of mnist 200-> 784
-        self.psudo_mapper = psudo_inp_mapping(in_size=K,
-                                              out_size=self.input_size)  # ? do we need to initialize the network like they do in the paper
-        psudo_input = self.psudo_mapper(init_inp)  # learn how to get best mapping
+        psudo_input = self.psudo_mapper(self.pseudo_input)  # learn how to get best mapping
         prior_mean, prior_logvar = self.encode(psudo_input)  # running the encoding with the psi params
 
         # ! --- Need to change, their code
@@ -149,11 +149,11 @@ class VanillaVAE(nn.Module):
         return log_prior
 
 
-    def get_z_prior(self, type_of_prior, z_sample, dim):
-        if type_of_prior == 'standard':
+    def get_z_prior(self, z_sample, dim):
+        if self.prior == 'standard':
             log_p = torch.mean(-0.5 * torch.pow(z_sample, 2),
                                dim=dim)  # get the prior that we are pulling the posterior towards by KL
-        elif type_of_prior == 'vamp':
+        elif self.prior == 'vamp':
             log_p = self.vamp_prior(z_sample)
             # implement vamp prior
         else:
@@ -167,24 +167,19 @@ class VanillaVAE(nn.Module):
         return self.decode(z), x, mu, logvar, z  # also need to return samples of z
 
 
-class psudo_inp_mapping(nn.Module):
+class PsudoInpMapping(nn.Module):
     def __init__(self, in_size, out_size):
-        super(psudo_inp_mapping, self).__init__()
+        super(PsudoInpMapping, self).__init__()
 
-        # self.mapper = nn.Sequential(nn.Linear(int(in_size), int(out_size), bias=False),
-        #                             nn.Hardtanh(min_val=0.0, max_val=1.0))
         self.mapper = nn.Linear(int(in_size), int(out_size), bias=False)
         self.activate = nn.Hardtanh(min_val=0.0, max_val=1.0)
-
+        pseudoinputs_mean = 0.05
+        pseudoinputs_std = 0.01
+        self.mapper.weight.data.normal_(pseudoinputs_mean, pseudoinputs_std)
         # self.mapper.apply(normal_init(mapper.))
         # normal_init(self.mapper.linear, pseudoinputs_mean, pseudoinputs_std)
 
     def forward(self, x):
-        pseudoinputs_mean = 0.05
-        pseudoinputs_std = 0.01
         X = self.mapper(x)
-        self.mapper.weight.data.normal_(pseudoinputs_mean,
-                                        pseudoinputs_std)  # initialize the weights for the linear layer
         X = self.activate(X)  # activate with Hardtanh
-
         return X
