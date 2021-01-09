@@ -13,7 +13,7 @@ args = {
     'input_type': 'continuous',  # ['binary','continuous']
     'prior': 'vamp',  # ['vamp','standard']
     'psudo_inp': 200,  # ignore if standard
-    'dataset': 'dynamicMnist',  # ['dynamicMnist', 'omniglot']
+    'dataset': 'fashionMnist',  # ['dynamicMnist', 'fashionMnist', 'omniglot']
 }
 
 train_loader, val_loader, test_loader, input_size = load_dataset(args)
