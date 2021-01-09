@@ -15,7 +15,7 @@ class VanillaVAE(nn.Module):
         self.hidden_dims = hidden_dims
         self.latent_dims =latent_dims
         self.input_type = args['input_type']
-        self.priors = args['prior']
+        self.prior = args['prior']
         self.psudo_input_size = args['psudo_inp']
 
 
@@ -176,8 +176,6 @@ class PsudoInpMapping(nn.Module):
         pseudoinputs_mean = 0.05
         pseudoinputs_std = 0.01
         self.mapper.weight.data.normal_(pseudoinputs_mean, pseudoinputs_std)
-        # self.mapper.apply(normal_init(mapper.))
-        # normal_init(self.mapper.linear, pseudoinputs_mean, pseudoinputs_std)
 
     def forward(self, x):
         X = self.mapper(x)
