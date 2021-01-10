@@ -93,12 +93,12 @@ class VanillaVAE(nn.Module):
         recon_error = loss(reconstruction, true_input)  # temp
 
         # get prior
-        prior_type = 'vamp'  # should be and argument in the beginning
+        prior_type = 'standard'  # should be and argument in the beginning
 
         p_z = self.get_z_prior(type_of_prior=prior_type, z_sample=z_sample, dim=dim)
         # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
 
-        q_z = torch.mean(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
+        q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
                          dim=dim)  # the approximated dist, should it be mean or not?
 
         # p_z_ = log_Normal_standard(z_sample, dim=1)
@@ -117,6 +117,41 @@ class VanillaVAE(nn.Module):
         KL = torch.mean(KL)
 
         return loss, recon_error, KL
+
+
+    def compute_LL(self, test_data, ll_no_samples, ll_batch_size):
+        """
+        computes the log-liklihood
+        :param test_data: test data
+        :param ll_no_samples: no of samples for the log likelihood estimation
+        :param ll_batch_size:  bath size for the log likelihood estimation
+        :return:
+        """
+
+        no_runs = int(ll_no_samples/ll_batch_size) if ll_no_samples > ll_batch_size else 1
+        data_N = test_data.size(0)
+
+        likelihood_mc = np.zeros((data_N, 1))
+        for i, data_item in enumerate(test_data):
+            data_item = data_item.unsqueeze(0)
+
+            results = np.zeros((no_runs, 1))
+            for j in range(no_runs):
+                # x = x_single.expand(S, data_item.size(1))
+                tmp_loss, _ , _ = self.get_loss(data_item)
+                results[j] = (-tmp_loss.cpu().data.numpy())
+
+            # calculate max
+            results = np.reshape(results, (results.shape[0] * results.shape[1], 1))
+            likelihood_x = logsumexp(results)
+            likelihood_mc[i] = (likelihood_x - np.log(no_runs))
+
+        likelihood_mc = np.array(likelihood_mc)
+
+    return -np.mean(likelihood_mc)
+
+
+
 
     def vamp_prior(self, z):
         K = 200  # nbr of psudo inputs/components
@@ -148,13 +183,13 @@ class VanillaVAE(nn.Module):
 
     def get_z_prior(self, type_of_prior, z_sample, dim):
         if type_of_prior == 'standard':
-            log_p = torch.mean(-0.5 * torch.pow(z_sample, 2),
+            log_p = torch.sum(-0.5 * torch.pow(z_sample, 2),
                                dim=dim)  # get the prior that we are pulling the posterior towards by KL
         elif type_of_prior == 'vamp':
             log_p = self.vamp_prior(z_sample)
 
             # implement vamp prior
-            pass
+            # pass
         else:
             raise TypeError("Need to specify the type of prior")
 

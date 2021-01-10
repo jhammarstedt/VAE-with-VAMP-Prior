@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 args = {
     'batch_size': 100,
     'input_size': [1, 28, 28],
-    'epochs': 20,
+    'epochs': 1,
     'lr': 0.0001,
     'input_type': 'continuous',
 }
