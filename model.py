@@ -191,7 +191,7 @@ class VAE_model(nn.Module):
 
         likelihood_mc = np.array(likelihood_mc)
 
-    return -np.mean(likelihood_mc)
+        return -np.mean(likelihood_mc)
 
 
 
