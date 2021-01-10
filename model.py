@@ -1,5 +1,6 @@
 
 from nn import *
+from scipy.special import logsumexp
 import math
 
 
