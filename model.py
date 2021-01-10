@@ -161,6 +161,41 @@ class VAE_model(nn.Module):
 
         return loss, recon_error, KL
 
+
+    def compute_LL(self, test_data, ll_no_samples, ll_batch_size):
+        """
+        computes the log-liklihood
+        :param test_data: test data
+        :param ll_no_samples: no of samples for the log likelihood estimation
+        :param ll_batch_size:  bath size for the log likelihood estimation
+        :return:
+        """
+
+        no_runs = int(ll_no_samples/ll_batch_size) if ll_no_samples > ll_batch_size else 1
+        data_N = test_data.size(0)
+
+        likelihood_mc = np.zeros((data_N, 1))
+        for i, data_item in enumerate(test_data):
+            data_item = data_item.unsqueeze(0)
+
+            results = np.zeros((no_runs, 1))
+            for j in range(no_runs):
+                # x = x_single.expand(S, data_item.size(1))
+                tmp_loss, _ , _ = self.get_loss(data_item)
+                results[j] = (-tmp_loss.cpu().data.numpy())
+
+            # calculate max
+            results = np.reshape(results, (results.shape[0] * results.shape[1], 1))
+            likelihood_x = logsumexp(results)
+            likelihood_mc[i] = (likelihood_x - np.log(no_runs))
+
+        likelihood_mc = np.array(likelihood_mc)
+
+    return -np.mean(likelihood_mc)
+
+
+
+
     def vamp_prior(self, z):
         K = self.psudo_input_size  # nbr of psudo inputs/components
 
