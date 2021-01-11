@@ -19,8 +19,11 @@ def train_loop(train_loader, model, optimizer, writer, epoch):
         # reset gradients
         optimizer.zero_grad()
         # loss evaluation (forward pass)
-        loss, RE, KL = model.get_loss(x)
-
+        if epoch > 100: #warmup period
+            print('Ending Warmup')
+            loss, RE, KL = model.get_loss(x,warmup=False)
+        else:
+            loss, RE, KL = model.get_loss(x)
         writer.add_scalar("Loss", loss, epoch)
         writer.add_scalar("RE", RE, epoch)
         writer.add_scalar("KL", KL, epoch)
@@ -70,7 +73,7 @@ def val_loop(val_loader, model, writer, epoch, plot=False, dir=''):
                 if not os.path.exists(dir + 'reconstruction/'):
                     os.makedirs(dir + 'reconstruction/')
                 plot_images(x.cpu().detach().numpy()[:9], dir + 'reconstruction/', 'real')
-            reconstruction, _, _, _, _ = model.forward(x)
+            _, _, reconstruction, _, _, _, _ = model.forward(x)
             plot_images(reconstruction.cpu().detach().numpy()[:9], dir + 'reconstruction/', str(epoch))
     writer.flush()
 

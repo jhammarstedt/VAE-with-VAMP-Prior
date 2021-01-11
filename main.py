@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 args = {
     'batch_size': 100,
     'input_size': [1, 28, 28],
-    'epochs': 1,
+    'epochs': 20,
     'lr': 0.0001,
     'hidden_dims': 100,
     'latent_dims': 10,
