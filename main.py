@@ -21,6 +21,7 @@ args = {
     'psudo_inp': 200,  # ignore if standard
     'dataset': 'fashionMnist',  # ['dynamicMnist', 'fashionMnist', 'omniglot']
     'train': True,
+
     'test': True,
 }
 
