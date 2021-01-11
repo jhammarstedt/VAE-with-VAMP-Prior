@@ -117,13 +117,13 @@ class VAE_model(nn.Module):
         In variational autoencoders, the loss function is composed of a reconstruction term 
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
-        x_mean, x_logvar,reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
+        x_mean, x_logvar, reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
 
         # compute reconstruction error
-        #!loss = nn.MSELoss(reduction='mean')
-        #!recon_error = loss(reconstruction, true_input)  # temp
+        loss = nn.MSELoss(reduction='sum')
+        recon_error = loss(reconstruction, true_input)  # temp
 
-        recon_error = -self.log_Logistic_256(data, x_mean, x_logvar, dim=1)
+        # recon_error = -self.log_Logistic_256(data, x_mean, x_logvar, dim=1)
 
         p_z = self.get_z_prior(z_sample=z_sample, dim=1)
         q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
@@ -136,7 +136,7 @@ class VAE_model(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
         
-        loss = -recon_error + beta * KL
+        loss = recon_error + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
