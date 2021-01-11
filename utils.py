@@ -21,8 +21,11 @@ def train_loop(train_loader, model, optimizer, writer, epoch):
         # reset gradients
         optimizer.zero_grad()
         # loss evaluation (forward pass)
-        loss, RE, KL = model.get_loss(x)
-
+        if epoch > 100: #warmup period
+            print('Ending Warmup')
+            loss, RE, KL = model.get_loss(x,warmup=False)
+        else:
+            loss, RE, KL = model.get_loss(x)
         writer.add_scalar("Loss", loss, epoch)
         writer.add_scalar("RE", RE, epoch)
         writer.add_scalar("KL", KL, epoch)
@@ -72,7 +75,7 @@ def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
                 if not os.path.exists(directory + 'reconstruction/'):
                     os.makedirs(directory + 'reconstruction/')
                 plot_images(x.cpu().detach().numpy()[:9], directory + 'reconstruction/', 'real')
-            reconstruction, _, _, _, _ = model.forward(x)
+            _, _, reconstruction, _, _, _, _ = model.forward(x)
             plot_images(reconstruction.cpu().detach().numpy()[:9], directory + 'reconstruction/', str(epoch))
     writer.flush()
 
@@ -87,7 +90,7 @@ def test_loop(test_loader, model, directory=''):
     test_data = []
     for data, _ in test_loader:
         test_data.append(data)
-    
+
     test_data = torch.cat(test_data, 0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     test_data = test_data.to(device)
@@ -101,8 +104,8 @@ def test_loop(test_loader, model, directory=''):
     if args['prior'] == 'vamp':
         pseudo_inputs = model.pseudo_mapper(model.pseudo_input)
         plot_images(pseudo_inputs[:25].cpu().detach().numpy(), directory + 'test_img/', 'pseudoinputs', size_x=5, size_y=5)
-    
-    
+
+
     ll_test_start = time.time()
     ll_test = model.compute_LL(test_data, 1000, 100)
     ll_test_end = time.time()

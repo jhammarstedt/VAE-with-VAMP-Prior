@@ -1,4 +1,3 @@
-
 from nn import *
 from scipy.special import logsumexp
 import math
@@ -13,7 +12,6 @@ class VAE_model(nn.Module):
         self.input_type = args['input_type']
         self.prior = args['prior']
         self.psudo_input_size = args['psudo_inp']
-
 
         # encoder p(z|x) - encode our input into the latent space with hopes to get as good representation as possible in less dimensions
         self.encoder = nn.Sequential(
@@ -41,15 +39,18 @@ class VAE_model(nn.Module):
             nn.Tanh()
         )
 
-        if self.prior == 'vamp':
+        self.p_x_mean = NonLinear(input_size=self.input_size,output_size=784, activation=nn.Sigmoid())
+        self.p_x_logvar = NonLinear(input_size=self.input_size, output_size=np.prod(self.input_size),
+                                    activation=nn.Hardtanh(min_val=-4.5, max_val=0))
 
+        if self.prior == 'vamp':
             self.K = 200  # nbr of psudo inputs/components
-            self.pseudo_input = torch.eye(self.K, self.K, requires_grad=False)  # initializing psudo inputs to just be identity
+            self.pseudo_input = torch.eye(self.K, self.K,
+                                          requires_grad=False)  # initializing psudo inputs to just be identity
 
             # mapper maps from nbr of components to input size- in case of mnist 200-> 784
-            self.psudo_mapper = PsudoInpMapping(in_size=self.K, out_size=self.input_size)  # ? do we need to initialize the network like they do in the paper
-
-
+            self.psudo_mapper = PsudoInpMapping(in_size=self.K,
+                                                out_size=self.input_size)  # ? do we need to initialize the network like they do in the paper
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self.psudo_mapper.to(device)
@@ -82,11 +83,10 @@ class VAE_model(nn.Module):
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    #! Their code
-    #!#######################################################
-    def log_Logistic_256(x, mean, logvar, average=False, reduce=True, dim=None):
+    # ! Their code
+    # !#######################################################
+    def log_Logistic_256(self,x, mean, logvar, average=False, reduce=True, dim=None):
         bin_size = 1. / 256.
-
         # implementation like https://github.com/openai/iaf/blob/master/tf_utils/distributions.py#L28
         scale = torch.exp(logvar)
         x = (torch.floor(x / bin_size) * bin_size - mean) / scale
@@ -107,9 +107,9 @@ class VAE_model(nn.Module):
         x_logvar = self.p_x_logvar(z)
         return x_mean, x_logvar
 
-    #!#######################################################
+    # !#######################################################
 
-    def get_loss(self, data, beta=0.7, choice_of_prior='standard'):
+    def get_loss(self, data, beta=0.7, warmup=True):
         """
         Computes the VAE loss function.
 
@@ -120,28 +120,29 @@ class VAE_model(nn.Module):
         x_mean,x_logvar,reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
 
         # compute reconstruction error
-        loss = nn.MSELoss(reduction='sum')
-        recon_error = loss(reconstruction, true_input)  # temp
+        #!loss = nn.MSELoss(reduction='mean')
+        #!recon_error = loss(reconstruction, true_input)  # temp
 
 
         p_z = self.get_z_prior(z_sample=z_sample, dim=1)
         q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
-                         dim=1)  # Get the approximated distribution
+                        dim=1)  # Get the approximated distribution
 
-    
+
         '''
         They are logged already and can therefore just be subtracted, 
         and in accordance with module 10 we take the expected value and 
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
-
-        loss = recon_error + beta * KL
+        if warmup: #skipping beta for the first epoch
+            loss = -recon_error + KL
+        else:
+            loss = -recon_error + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
 
         return loss, recon_error, KL
-
 
     def compute_LL(self, test_data, ll_no_samples=5000, ll_batch_size=100):
         """
@@ -152,7 +153,7 @@ class VAE_model(nn.Module):
         :return:
         """
 
-        no_runs = int(ll_no_samples/ll_batch_size) if ll_no_samples > ll_batch_size else 1
+        no_runs = int(ll_no_samples / ll_batch_size) if ll_no_samples > ll_batch_size else 1
         data_N = test_data.size(0)
 
         likelihood_mc = np.zeros((data_N, 1))
@@ -172,9 +173,6 @@ class VAE_model(nn.Module):
 
         return -np.mean(likelihood_mc)
 
-
-
-
     def vamp_prior(self, z):
         K = self.psudo_input_size  # nbr of psudo inputs/components
 
@@ -188,9 +186,9 @@ class VAE_model(nn.Module):
         logvars = prior_logvar.unsqueeze(0)
 
         a = torch.sum(-0.5 * (logvars + torch.pow(z_expand - means, 2) / torch.exp(logvars)),
-                      dim=2) - math.log(K)
+                      dim=2) - math.log(K)  # ? Why log(K)?
 
-        #a = log_Normal_diag(z_expand, means, logvars, dim=2) - math.log(K)  # MB x C
+        # a = log_Normal_diag(z_expand, means, logvars, dim=2) - math.log(K)  # MB x C
         a_max, _ = torch.max(a, 1)  # MB x 1
 
         # calculte log-sum-exp
@@ -199,12 +197,10 @@ class VAE_model(nn.Module):
 
         return log_prior
 
-    def GM_prior(self,z):
+    def GM_prior(self, z):
         """Here we implement the guassian mixture prior"""
-        K = self.psudo_input_size #same idea as vamp
+        K = self.psudo_input_size  # same idea as vamp
         raise NotImplementedError()
-
-
 
     def get_z_prior(self, z_sample, dim):
         if self.prior == 'standard':
@@ -212,7 +208,7 @@ class VAE_model(nn.Module):
                                dim=dim)  # get the prior that we are pulling the posterior towards by KL
         elif self.prior == 'vamp':
             log_p = self.vamp_prior(z_sample)
-        elif self.prior =='GM':
+        elif self.prior == 'GM':
             log_p = self.GM_prior(z_sample)
         else:
             raise TypeError("Need to specify the type of prior")
@@ -228,7 +224,8 @@ class VAE_model(nn.Module):
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrization(mu, logvar)
-        return self.decode(z), x, mu, logvar, z  # also need to return samples of z
+        x_mean, x_logvar, recon = self.decode(z)
+        return x_mean, x_logvar, recon, x, mu, logvar, z  # also need to return samples of z
 
 
 class PsudoInpMapping(nn.Module):
