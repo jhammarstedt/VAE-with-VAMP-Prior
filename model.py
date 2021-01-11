@@ -1,19 +1,15 @@
-import torch
-from torch import nn
-import numpy as np
-from torch.nn import functional as F
-from utils import *
+
 from nn import *
-import matplotlib.pyplot as plt
+from scipy.special import logsumexp
 import math
 
 
-class VanillaVAE(nn.Module):
-    def __init__(self, input_size: int, hidden_dims: int, latent_dims: int, args: dict):
-        super(VanillaVAE, self).__init__()
+class VAE_model(nn.Module):
+    def __init__(self, input_size: int, args: dict):
+        super(VAE_model, self).__init__()
         self.input_size = input_size
-        self.hidden_dims = hidden_dims
-        self.latent_dims =latent_dims
+        self.hidden_dims = args['hidden_dims']
+        self.latent_dims =args['latent_dims']
         self.input_type = args['input_type']
         self.prior = args['prior']
         self.psudo_input_size = args['psudo_inp']
@@ -21,31 +17,32 @@ class VanillaVAE(nn.Module):
 
         # encoder p(z|x) - encode our input into the latent space with hopes to get as good representation as possible in less dimensions
         self.encoder = nn.Sequential(
-            nn.Linear(input_size, hidden_dims),
+            nn.Linear(input_size, self.hidden_dims),
             nn.Tanh(),
-            nn.Linear(hidden_dims, hidden_dims),  # here we lower the dimensions to match our latent space
+            nn.Linear(self.hidden_dims, self.hidden_dims),  # here we lower the dimensions to match our latent space
             nn.Tanh(),
         )
 
         # The expected value and variance of z given the input are computed through NNs
         if self.input_type == 'continuous':
-            self.enc_mu = nn.Linear(hidden_dims, latent_dims)
+            self.enc_mu = nn.Linear(self.hidden_dims, self.latent_dims)
             self.enc_logvar = nn.Sequential(
-                nn.Linear(hidden_dims, latent_dims),
+                nn.Linear(self.hidden_dims, self.latent_dims),
                 nn.Hardtanh(min_val=-6., max_val=2.)
             )
         elif self.input_type == 'binary':
-            self.enc_mu = nn.Linear(hidden_dims, latent_dims)
+            self.enc_mu = nn.Linear(self.hidden_dims, self.latent_dims)
 
         # decoder q(x|z)
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dims, hidden_dims),
+            nn.Linear(self.latent_dims, self.hidden_dims),
             nn.Tanh(),
-            nn.Linear(hidden_dims, input_size),  # here we increase the dimensions to match the original image
+            nn.Linear(self.hidden_dims, input_size),  # here we increase the dimensions to match the original image
             nn.Tanh()
         )
 
         if self.prior == 'vamp':
+
             self.K = 200  # nbr of psudo inputs/components
             self.pseudo_input = torch.eye(self.K, self.K, requires_grad=False)  # initializing psudo inputs to just be identity
 
@@ -83,14 +80,11 @@ class VanillaVAE(nn.Module):
     def get_loss(self, data, beta=0.7, choice_of_prior='standard'):
         """
         Computes the VAE loss function.
-        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
-        
+
         Lower_bound = - log_p(z|x) - KL(q_z||p_z) where log_p(z|x) is the reconstruction error
         In variational autoencoders, the loss function is composed of a reconstruction term 
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
-        dim = 1
-        # Running the vanillaVAE
         reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
         # plt.imshow(data[0].reshape(28, 28))
         # plt.show()
@@ -98,19 +92,17 @@ class VanillaVAE(nn.Module):
         # plt.show()
 
         # compute reconstruction error
-        # start off with MSE but we'll fix that later
         loss = nn.MSELoss(reduction='sum')
         recon_error = loss(reconstruction, true_input)  # temp
 
 
-        p_z = self.get_z_prior(z_sample=z_sample, dim=dim)
-        # q_z = torch.mean(-0.5 * torch.pow(z_sample, 2), dim=dim) #get the true distribtion
-
+        p_z = self.get_z_prior(z_sample=z_sample, dim=1)
         q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
-                         dim=dim)  # the approximated dist, should it be mean or not?
+                         dim=1)  # Get the approximated distribution
 
         # p_z_ = log_Normal_standard(z_sample, dim=1)
         # q_z_ = log_Normal_diag(z_sample, z_mu, z_lvar, dim=1)
+
         '''
         They are logged already and can therefore just be subtracted, 
         and in accordance with module 10 we take the expected value and 
@@ -123,6 +115,41 @@ class VanillaVAE(nn.Module):
         KL = torch.mean(KL)
 
         return loss, recon_error, KL
+
+
+    def compute_LL(self, test_data, ll_no_samples, ll_batch_size):
+        """
+        computes the log-liklihood
+        :param test_data: test data
+        :param ll_no_samples: no of samples for the log likelihood estimation
+        :param ll_batch_size:  bath size for the log likelihood estimation
+        :return:
+        """
+
+        no_runs = int(ll_no_samples/ll_batch_size) if ll_no_samples > ll_batch_size else 1
+        data_N = test_data.size(0)
+
+        likelihood_mc = np.zeros((data_N, 1))
+        for i, data_item in enumerate(test_data):
+            data_item = data_item.unsqueeze(0)
+
+            results = np.zeros((no_runs, 1))
+            for j in range(no_runs):
+                # x = x_single.expand(S, data_item.size(1))
+                tmp_loss, _ , _ = self.get_loss(data_item)
+                results[j] = (-tmp_loss.cpu().data.numpy())
+
+            # calculate max
+            results = np.reshape(results, (results.shape[0] * results.shape[1], 1))
+            likelihood_x = logsumexp(results)
+            likelihood_mc[i] = (likelihood_x - np.log(no_runs))
+
+        likelihood_mc = np.array(likelihood_mc)
+
+    return -np.mean(likelihood_mc)
+
+
+
 
     def vamp_prior(self, z):
         K = self.psudo_input_size  # nbr of psudo inputs/components
@@ -148,6 +175,16 @@ class VanillaVAE(nn.Module):
 
         return log_prior
 
+    def GM_prior(self,z):
+        """Here we implement the guassian mixture prior"""
+        K = self.psudo_input_size #same idea as vamp
+
+
+
+
+        pass
+
+
 
     def get_z_prior(self, z_sample, dim):
         if self.prior == 'standard':
@@ -155,7 +192,8 @@ class VanillaVAE(nn.Module):
                                dim=dim)  # get the prior that we are pulling the posterior towards by KL
         elif self.prior == 'vamp':
             log_p = self.vamp_prior(z_sample)
-            # implement vamp prior
+        elif self.prior =='GM':
+            log_p = self.GM_prior(z_sample)
         else:
             raise TypeError("Need to specify the type of prior")
 

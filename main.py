@@ -1,15 +1,16 @@
-from model import VanillaVAE
+from model import VAE_model
 from load_data import load_dataset
 from torch.optim import Adam
 from utils import train_loop, val_loop
 from torch.utils.tensorboard import SummaryWriter
-import matplotlib.pyplot as plt
 
 args = {
     'batch_size': 100,
     'input_size': [1, 28, 28],
-    'epochs': 20,
+    'epochs': 1,
     'lr': 0.0001,
+    'hidden_dims': 100,
+    'latent_dims': 10,
     'input_type': 'continuous',  # ['binary','continuous']
     'prior': 'vamp',  # ['vamp','standard']
     'psudo_inp': 200,  # ignore if standard
@@ -24,7 +25,7 @@ train_loss_history = []
 train_re_history = []
 train_kl_history = []
 
-model = VanillaVAE(input_size=input_size[1], hidden_dims=100, latent_dims=10, args=args)
+model = VAE_model(input_size=input_size[1], args=args)
 optimizer = Adam(model.parameters(), lr=args['lr'])
 
 for epoch in range(1, args['epochs'] + 1):
