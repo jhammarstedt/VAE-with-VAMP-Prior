@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import os
 
+import time
+
 def train_loop(train_loader, model, optimizer, writer, epoch):
     # set loss to 0
     train_loss = 0
@@ -46,7 +48,7 @@ def train_loop(train_loader, model, optimizer, writer, epoch):
     return model, train_loss, train_re, train_kl
 
 
-def val_loop(val_loader, model, writer, epoch, plot=False, dir=''):
+def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
     # set loss to 0
     val_loss = 0
     val_re = 0
@@ -70,11 +72,11 @@ def val_loop(val_loader, model, writer, epoch, plot=False, dir=''):
         val_kl += KL.item()
         if plot and id == 1:
             if epoch == 1:
-                if not os.path.exists(dir + 'reconstruction/'):
-                    os.makedirs(dir + 'reconstruction/')
-                plot_images(x.cpu().detach().numpy()[:9], dir + 'reconstruction/', 'real')
+                if not os.path.exists(directory + 'reconstruction/'):
+                    os.makedirs(directory + 'reconstruction/')
+                plot_images(x.cpu().detach().numpy()[:9], directory + 'reconstruction/', 'real')
             _, _, reconstruction, _, _, _, _ = model.forward(x)
-            plot_images(reconstruction.cpu().detach().numpy()[:9], dir + 'reconstruction/', str(epoch))
+            plot_images(reconstruction.cpu().detach().numpy()[:9], directory + 'reconstruction/', str(epoch))
     writer.flush()
 
     # calculate final loss
@@ -82,6 +84,34 @@ def val_loop(val_loader, model, writer, epoch, plot=False, dir=''):
     val_re /= len(val_loader)  # re already averages over batch size
     val_kl /= len(val_loader)  # kl already averages over batch size
     return val_loss, val_re, val_kl
+
+
+def test_loop(test_loader, model, directory=''):
+    test_data = []
+    for data, _ in test_loader:
+        test_data.append(data)
+
+    test_data = torch.cat(test_data, 0)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    test_data = test_data.to(device)
+
+    print('Plot real images, reconstructions and sampled images')
+    reconstruction, _, _, _, _ = model.forward(test_data[:25])
+    plot_images(test_data[:25].cpu().detach().numpy(), directory + 'test_img/', 'real', size_x=5, size_y=5)
+    plot_images(reconstruction.cpu().detach().numpy(), directory + 'test_img/', 'reconstructions', size_x=5, size_y=5)
+    sampled = model.sample(25)
+    plot_images(sampled.cpu().detach().numpy(), directory + 'test_img/', 'sampled', size_x=5, size_y=5)
+    if args['prior'] == 'vamp':
+        pseudo_inputs = model.pseudo_mapper(model.pseudo_input)
+        plot_images(pseudo_inputs[:25].cpu().detach().numpy(), directory + 'test_img/', 'pseudoinputs', size_x=5, size_y=5)
+
+
+    ll_test_start = time.time()
+    ll_test = model.compute_LL(test_data, 1000, 100)
+    ll_test_end = time.time()
+    print('Log-likelihood on test data {} in {}min'.format(ll_test, (ll_test_end - ll_test_start) / 60))
+    return ll_test
+
 
 def log_Normal_diag(x, mean, log_var, average=False, dim=None):
     log_normal = -0.5 * (log_var + torch.pow(x - mean, 2) / torch.exp(log_var))
@@ -99,20 +129,8 @@ def log_Normal_standard(x, average=False, dim=None):
         return torch.sum(log_normal, dim)
 
 
-# def evaluation():
-#
-#
-# def generate_plot(x_label, ):
-#     fig = plt.figure()
-#     plt.xlabel('Log-likelihood value')
-#     plt.ylabel('Probability')
-#
-#
-#     plt.grid(True)
-#     # plt.savefig(f"{}")
-#     plt.show()
 
-def plot_images(x_sample, dir, name, size_x=3, size_y=3):
+def plot_images(x_sample, directory, name, size_x=3, size_y=3):
 
     fig = plt.figure(figsize=(size_x, size_y))
     gs = gridspec.GridSpec(size_x, size_y)
@@ -127,5 +145,5 @@ def plot_images(x_sample, dir, name, size_x=3, size_y=3):
         sample = sample.reshape((28, 28))
         plt.imshow(sample)
 
-    plt.savefig(dir + name + '.png', bbox_inches='tight')
+    plt.savefig(directory + name + '.png', bbox_inches='tight')
     plt.close(fig)
