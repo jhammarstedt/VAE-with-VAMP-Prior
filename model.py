@@ -70,12 +70,44 @@ class VAE_model(nn.Module):
         return mu, logvar
 
     def decode(self, x):
-        return self.decoder(x)
+        z = self.decoder(x)
+        x_mean = self.p_x_mean(z)
+        x_mean = torch.clamp(x_mean, min=0. + 1. / 512., max=1. - 1. / 512.)
+        x_logvar = self.p_x_logvar(z)
+
+        return x_mean, x_logvar, z
 
     def reparametrization(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return eps * std + mu
+
+    #! Their code
+    #!#######################################################
+    def log_Logistic_256(x, mean, logvar, average=False, reduce=True, dim=None):
+        bin_size = 1. / 256.
+
+        # implementation like https://github.com/openai/iaf/blob/master/tf_utils/distributions.py#L28
+        scale = torch.exp(logvar)
+        x = (torch.floor(x / bin_size) * bin_size - mean) / scale
+        cdf_plus = torch.sigmoid(x + bin_size / scale)
+        cdf_minus = torch.sigmoid(x)
+
+        # calculate final log-likelihood for an image
+        log_logist_256 = - torch.log(cdf_plus - cdf_minus + 1.e-7)
+
+        return torch.sum(log_logist_256, dim)
+
+    # THE MODEL: GENERATIVE DISTRIBUTION
+    def p_x(self, z):
+        z = self.decoder(z)
+
+        x_mean = self.p_x_mean(z)
+        x_mean = torch.clamp(x_mean, min=0. + 1. / 512., max=1. - 1. / 512.)
+        x_logvar = self.p_x_logvar(z)
+        return x_mean, x_logvar
+
+    #!#######################################################
 
     def get_loss(self, data, beta=0.7, choice_of_prior='standard'):
         """
@@ -85,10 +117,10 @@ class VAE_model(nn.Module):
         In variational autoencoders, the loss function is composed of a reconstruction term 
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
-        reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
+        x_mean,x_logvar,reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
 
         # compute reconstruction error
-        loss = nn.MSELoss(reduction='mean')
+        loss = nn.MSELoss(reduction='sum')
         recon_error = loss(reconstruction, true_input)  # temp
 
 
@@ -116,7 +148,7 @@ class VAE_model(nn.Module):
         computes the log-liklihood
         :param test_data: test data
         :param ll_no_samples: no of samples for the log likelihood estimation
-        :param ll_batch_size:  bath size for the log likelihood estimation
+        :param ll_batch_size: batch size for the log likelihood estimation
         :return:
         """
 
@@ -137,8 +169,6 @@ class VAE_model(nn.Module):
             results = np.reshape(results, (results.shape[0] * results.shape[1], 1))
             likelihood_x = logsumexp(results)
             likelihood_mc[i] = (likelihood_x - np.log(no_runs))
-
-        likelihood_mc = np.array(likelihood_mc)
 
         return -np.mean(likelihood_mc)
 
