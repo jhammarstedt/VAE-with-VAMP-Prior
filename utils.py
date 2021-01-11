@@ -86,7 +86,7 @@ def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
     return val_loss, val_re, val_kl
 
 
-def test_loop(test_loader, model, directory=''):
+def test_loop(test_loader, model, args, directory=''):
     test_data = []
     for data, _ in test_loader:
         test_data.append(data)
@@ -97,12 +97,12 @@ def test_loop(test_loader, model, directory=''):
 
     print('Plot real images, reconstructions and sampled images')
     reconstruction = model.reconstruct(test_data[:25])
-    plot_images(test_data[:25].cpu().detach().numpy(), directory + 'test_img/', 'real', size_x=5, size_y=5)
-    plot_images(reconstruction.cpu().detach().numpy(), directory + 'test_img/', 'reconstructions', size_x=5, size_y=5)
+    plot_images(test_data[:25].cpu().detach().numpy(), directory + 'test_img/', 'real_test', size_x=5, size_y=5)
+    plot_images(reconstruction.cpu().detach().numpy(), directory + 'test_img/', 'reconstruction_test', size_x=5, size_y=5)
     sampled = model.sample(25)
     plot_images(sampled.cpu().detach().numpy(), directory + 'test_img/', 'sampled', size_x=5, size_y=5)
     if args['prior'] == 'vamp':
-        pseudo_inputs = model.pseudo_mapper(model.pseudo_input)
+        pseudo_inputs = model.psudo_mapper(model.pseudo_input)
         plot_images(pseudo_inputs[:25].cpu().detach().numpy(), directory + 'test_img/', 'pseudoinputs', size_x=5, size_y=5)
 
 

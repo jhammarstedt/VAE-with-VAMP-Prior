@@ -69,13 +69,14 @@ def run_experiment(args):
             if val_loss_e < best_val_loss:
                 best_val_loss = val_loss_e
                 print('Saving model with {} validation loss'.format(best_val_loss))
-                torch.save(model.state_dict(), model_name)
+                torch.save(model.state_dict(), run_name + '/' + model_name)
 
         writer.close()
 
     if args['test']:
-        model.load_state_dict(torch.load(model_name))
-        test_loop(test_loader, model)
+        os.mkdir(run_name + '/test_img/')
+        model.load_state_dict(torch.load(run_name + '/' + model_name))
+        test_loop(test_loader, model, args, directory=run_name + '/')
 
     return model
 
