@@ -1,11 +1,11 @@
-
+import os
 import pickle
+from math import ceil
+
 import numpy as np
 import torch
 import torch.utils.data as tud
 from scipy.io import loadmat
-import os
-from math import ceil
 
 
 def load_dataset(args):
@@ -28,19 +28,17 @@ def read_pickle(file_name):
 
 
 def load_omniglot(train_size=0.8):
-
-
     def reshape_omniglot():
-        return 
+        return
 
+        # data characteristics
 
-    # data characteristics
     dataset_shape = [1, 28, 28]
     dataset_type = "binary"
 
-    omni_mat = loadmat(os.path.join('data','chardata.mat'))
+    omni_mat = loadmat(os.path.join('data', 'chardata.mat'))
 
-    train_data =  omni_mat['data'].T.astype('float32')
+    train_data = omni_mat['data'].T.astype('float32')
     test_data = 2
 
     # print(train_data.reshape((-1, 28, 28)).reshape((-1, 28*28), order='F').shape)
@@ -50,34 +48,32 @@ def load_omniglot(train_size=0.8):
 
     x_train, x_valu = np.split(train_data, [ceil(train_size * len(train_data)), len(train_data)])
 
-
     # Pytorch specifies
     train_td = tud.TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train))
-    
 
 
 def load_dynamic_mnist(batch_size, **kwargs):
     # start processing
     from torchvision import datasets, transforms
     train_loader = torch.utils.data.DataLoader(datasets.MNIST('../data', train=True, download=True,
-                                                               transform=transforms.Compose([
-                                                                   transforms.ToTensor()
-                                                               ])),
-                                                batch_size=batch_size, shuffle=True)
+                                                              transform=transforms.Compose([
+                                                                  transforms.ToTensor()
+                                                              ])),
+                                               batch_size=batch_size, shuffle=True)
 
     test_loader = torch.utils.data.DataLoader(datasets.MNIST('../data', train=False,
-                                                              transform=transforms.Compose([transforms.ToTensor()
-                                                                        ])),
-                                               batch_size=batch_size, shuffle=True)
+                                                             transform=transforms.Compose([transforms.ToTensor()
+                                                                                           ])),
+                                              batch_size=batch_size, shuffle=True)
 
     # preparing data
     x_train = train_loader.dataset.data.float().numpy() / 255.
-    x_train = np.reshape( x_train, (x_train.shape[0], x_train.shape[1] * x_train.shape[2] ) )
+    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1] * x_train.shape[2]))
     print(x_train.shape)
-    y_train = np.array( train_loader.dataset.targets.float().numpy(), dtype=int)
+    y_train = np.array(train_loader.dataset.targets.float().numpy(), dtype=int)
 
     x_test = test_loader.dataset.data.float().numpy() / 255.
-    x_test = np.reshape( x_test, (x_test.shape[0], x_test.shape[1] * x_test.shape[2] ) )
+    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1] * x_test.shape[2]))
 
     y_test = np.array(test_loader.dataset.targets.float().numpy(), dtype=int)
 
@@ -99,28 +95,29 @@ def load_dynamic_mnist(batch_size, **kwargs):
 
     return train_loader, val_loader, test_loader, [1, 784]
 
+
 def load_fashion_mnist(batch_size, **kwargs):
     # start processing
     from torchvision import datasets, transforms
     train_loader = torch.utils.data.DataLoader(datasets.FashionMNIST('../data', train=True, download=True,
-                                                               transform=transforms.Compose([
-                                                                   transforms.ToTensor()
-                                                               ])),
-                                                batch_size=batch_size, shuffle=True)
+                                                                     transform=transforms.Compose([
+                                                                         transforms.ToTensor()
+                                                                     ])),
+                                               batch_size=batch_size, shuffle=True)
 
     test_loader = torch.utils.data.DataLoader(datasets.FashionMNIST('../data', train=False,
-                                                              transform=transforms.Compose([transforms.ToTensor()
-                                                                        ])),
-                                               batch_size=batch_size, shuffle=True)
+                                                                    transform=transforms.Compose([transforms.ToTensor()
+                                                                                                  ])),
+                                              batch_size=batch_size, shuffle=True)
 
     # preparing data
     x_train = train_loader.dataset.data.float().numpy() / 255.
-    x_train = np.reshape( x_train, (x_train.shape[0], x_train.shape[1] * x_train.shape[2] ) )
+    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1] * x_train.shape[2]))
     print(x_train.shape)
-    y_train = np.array( train_loader.dataset.targets.float().numpy(), dtype=int)
+    y_train = np.array(train_loader.dataset.targets.float().numpy(), dtype=int)
 
     x_test = test_loader.dataset.data.float().numpy() / 255.
-    x_test = np.reshape( x_test, (x_test.shape[0], x_test.shape[1] * x_test.shape[2] ) )
+    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1] * x_test.shape[2]))
 
     y_test = np.array(test_loader.dataset.targets.float().numpy(), dtype=int)
 
@@ -141,6 +138,3 @@ def load_fashion_mnist(batch_size, **kwargs):
     test_loader = tud.DataLoader(test, batch_size=batch_size, shuffle=False, **kwargs)
 
     return train_loader, val_loader, test_loader, [1, 784]
-
-
-
