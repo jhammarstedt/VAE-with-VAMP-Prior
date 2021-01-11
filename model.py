@@ -220,7 +220,10 @@ class VAE_model(nn.Module):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         z = z.to(device)
         return self.decode(z)
-
+    
+    def reconstruct(self, x):
+        return self.forward(x)[2]
+    
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrization(mu, logvar)

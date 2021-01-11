@@ -75,7 +75,7 @@ def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
                 if not os.path.exists(directory + 'reconstruction/'):
                     os.makedirs(directory + 'reconstruction/')
                 plot_images(x.cpu().detach().numpy()[:9], directory + 'reconstruction/', 'real')
-            _, _, reconstruction, _, _, _, _ = model.forward(x)
+            reconstruction = model.reconstruct(x)
             plot_images(reconstruction.cpu().detach().numpy()[:9], directory + 'reconstruction/', str(epoch))
     writer.flush()
 
@@ -96,7 +96,7 @@ def test_loop(test_loader, model, directory=''):
     test_data = test_data.to(device)
 
     print('Plot real images, reconstructions and sampled images')
-    reconstruction, _, _, _, _ = model.forward(test_data[:25])
+    reconstruction = model.reconstruct(test_data[:25])
     plot_images(test_data[:25].cpu().detach().numpy(), directory + 'test_img/', 'real', size_x=5, size_y=5)
     plot_images(reconstruction.cpu().detach().numpy(), directory + 'test_img/', 'reconstructions', size_x=5, size_y=5)
     sampled = model.sample(25)
