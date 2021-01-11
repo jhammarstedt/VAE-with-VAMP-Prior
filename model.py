@@ -135,10 +135,8 @@ class VAE_model(nn.Module):
         and in accordance with module 10 we take the expected value and 
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
-        if warmup: #skipping beta for the first epoch
-            loss = -recon_error + KL
-        else:
-            loss = -recon_error + beta * KL
+        
+        loss = -recon_error + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)

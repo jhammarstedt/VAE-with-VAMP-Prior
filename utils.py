@@ -20,12 +20,10 @@ def train_loop(train_loader, model, optimizer, writer, epoch):
 
         # reset gradients
         optimizer.zero_grad()
+        # warm-up
+        beta = epoch / 50. if epoch < 50 else 1.
         # loss evaluation (forward pass)
-        if epoch > 100: #warmup period
-            print('Ending Warmup')
-            loss, RE, KL = model.get_loss(x,warmup=False)
-        else:
-            loss, RE, KL = model.get_loss(x)
+        loss, RE, KL = model.get_loss(x, beta=beta)
         writer.add_scalar("Loss", loss, epoch)
         writer.add_scalar("RE", RE, epoch)
         writer.add_scalar("KL", KL, epoch)
