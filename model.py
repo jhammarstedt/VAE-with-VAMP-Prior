@@ -120,8 +120,8 @@ class VAE_model(nn.Module):
         x_mean,x_logvar,reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
 
         # compute reconstruction error
-        #!loss = nn.MSELoss(reduction='mean')
-        #!recon_error = loss(reconstruction, true_input)  # temp
+        loss = nn.MSELoss(reduction='mean')
+        recon_error = loss(reconstruction, true_input)  # temp
 
 
         p_z = self.get_z_prior(z_sample=z_sample, dim=1)

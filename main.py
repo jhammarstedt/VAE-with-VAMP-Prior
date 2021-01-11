@@ -6,6 +6,8 @@ from utils import train_loop, val_loop, test_loop
 from torch.utils.tensorboard import SummaryWriter
 
 import time
+import os
+import shutil
 
 args = {
     'batch_size': 100,
@@ -22,8 +24,6 @@ args = {
     'test': True,
 }
 
-print(args)
-
 
 def run_experiment(args):
     # load data
@@ -32,6 +32,11 @@ def run_experiment(args):
     run_name = '{}_{}_{}_{}'.format(args['dataset'], args['prior'], args['psudo_inp'], args['latent_dims'])
     model_name = run_name + '.model'
     model = VAE_model(input_size=input_size[1], args=args)
+
+    # create log directory
+    if os.path.exists(run_name):
+        shutil.rmtree(run_name)
+    os.mkdir(run_name)
 
     if args['train']:
         optimizer = Adam(model.parameters(), lr=args['lr'])
@@ -49,7 +54,7 @@ def run_experiment(args):
         for epoch in range(1, args['epochs'] + 1):
             start = time.time()
             model, tr_loss_e, tr_re_e, tr_kl_e = train_loop(train_loader=train_loader, model=model, optimizer=optimizer, writer=writer, epoch=epoch)
-            val_loss_e, val_re_e, val_kl_e = val_loop(val_loader, model, writer, epoch, plot=True)
+            val_loss_e, val_re_e, val_kl_e = val_loop(val_loader, model, writer, epoch, plot=True, directory=run_name + '/')
 
             train_loss_history.append(tr_loss_e)
             train_re_history.append(tr_re_e)
@@ -71,3 +76,9 @@ def run_experiment(args):
         model.load_state_dict(torch.load(model_name))
         test_loop(test_loader, model)
 
+    return model
+
+
+if __name__ == '__main__':
+    print(args)
+    run_experiment(args)
