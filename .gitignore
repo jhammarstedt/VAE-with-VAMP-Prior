@@ -134,3 +134,5 @@ data/
 runs/
 
 .idea/*
+
+reconstruction/
