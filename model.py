@@ -9,7 +9,7 @@ class VAE_model(nn.Module):
         super(VAE_model, self).__init__()
         self.input_size = input_size
         self.hidden_dims = args['hidden_dims']
-        self.latent_dims =args['latent_dims']
+        self.latent_dims = args['latent_dims']
         self.input_type = args['input_type']
         self.prior = args['prior']
         self.psudo_input_size = args['psudo_inp']
@@ -86,13 +86,9 @@ class VAE_model(nn.Module):
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
         reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
-        # plt.imshow(data[0].reshape(28, 28))
-        # plt.show()
-        # plt.imshow(reconstruction[0].detach().numpy().reshape(28, 28))
-        # plt.show()
 
         # compute reconstruction error
-        loss = nn.MSELoss(reduction='sum')
+        loss = nn.MSELoss(reduction='mean')
         recon_error = loss(reconstruction, true_input)  # temp
 
 
@@ -100,9 +96,7 @@ class VAE_model(nn.Module):
         q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
                          dim=1)  # Get the approximated distribution
 
-        # p_z_ = log_Normal_standard(z_sample, dim=1)
-        # q_z_ = log_Normal_diag(z_sample, z_mu, z_lvar, dim=1)
-
+    
         '''
         They are logged already and can therefore just be subtracted, 
         and in accordance with module 10 we take the expected value and 
@@ -117,7 +111,7 @@ class VAE_model(nn.Module):
         return loss, recon_error, KL
 
 
-    def compute_LL(self, test_data, ll_no_samples, ll_batch_size):
+    def compute_LL(self, test_data, ll_no_samples=5000, ll_batch_size=100):
         """
         computes the log-liklihood
         :param test_data: test data
@@ -136,7 +130,7 @@ class VAE_model(nn.Module):
             results = np.zeros((no_runs, 1))
             for j in range(no_runs):
                 # x = x_single.expand(S, data_item.size(1))
-                tmp_loss, _ , _ = self.get_loss(data_item)
+                tmp_loss, _, _ = self.get_loss(data_item)
                 results[j] = (-tmp_loss.cpu().data.numpy())
 
             # calculate max
@@ -146,7 +140,7 @@ class VAE_model(nn.Module):
 
         likelihood_mc = np.array(likelihood_mc)
 
-    return -np.mean(likelihood_mc)
+        return -np.mean(likelihood_mc)
 
 
 
@@ -178,11 +172,7 @@ class VAE_model(nn.Module):
     def GM_prior(self,z):
         """Here we implement the guassian mixture prior"""
         K = self.psudo_input_size #same idea as vamp
-
-
-
-
-        pass
+        raise NotImplementedError()
 
 
 
@@ -198,6 +188,12 @@ class VAE_model(nn.Module):
             raise TypeError("Need to specify the type of prior")
 
         return log_p
+
+    def sample(self, num_samples):
+        z = torch.randn(num_samples, self.latent_dim)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        z = z.to(device)
+        return self.decode(z)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
