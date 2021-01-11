@@ -109,7 +109,7 @@ class VAE_model(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
 
-        loss = recon_error + beta * KL
+        loss = recon_error/300 + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
@@ -122,7 +122,7 @@ class VAE_model(nn.Module):
         computes the log-liklihood
         :param test_data: test data
         :param ll_no_samples: no of samples for the log likelihood estimation
-        :param ll_batch_size:  bath size for the log likelihood estimation
+        :param ll_batch_size: batch size for the log likelihood estimation
         :return:
         """
 
@@ -135,7 +135,6 @@ class VAE_model(nn.Module):
 
             results = np.zeros((no_runs, 1))
             for j in range(no_runs):
-                # x = x_single.expand(S, data_item.size(1))
                 tmp_loss, _ , _ = self.get_loss(data_item)
                 results[j] = (-tmp_loss.cpu().data.numpy())
 
@@ -144,9 +143,7 @@ class VAE_model(nn.Module):
             likelihood_x = logsumexp(results)
             likelihood_mc[i] = (likelihood_x - np.log(no_runs))
 
-        likelihood_mc = np.array(likelihood_mc)
-
-    return -np.mean(likelihood_mc)
+        return -np.mean(likelihood_mc)
 
 
 
