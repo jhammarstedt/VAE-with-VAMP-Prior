@@ -19,7 +19,7 @@ args = {
     'input_type': 'continuous',  # ['binary','continuous']
     'prior': 'vamp',  # ['vamp','standard']
     'psudo_inp': 200,  # ignore if standard
-    'dataset': 'fashionMnist',  # ['dynamicMnist', 'fashionMnist', 'omniglot']
+    'dataset': 'dynamicMnist',  # ['dynamicMnist', 'fashionMnist', 'omniglot']
     'train': True,
     'test': True,
 }

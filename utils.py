@@ -68,7 +68,7 @@ def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
         val_loss += loss.item()
         val_re += RE.item()
         val_kl += KL.item()
-        if plot and id == 1:
+        if plot and id == 1 and (epoch % 10 == 0 or epoch == 1):
             if epoch == 1:
                 if not os.path.exists(directory + 'reconstruction/'):
                     os.makedirs(directory + 'reconstruction/')
