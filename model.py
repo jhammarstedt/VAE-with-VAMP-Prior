@@ -41,6 +41,17 @@ class VAE_model(nn.Module):
             nn.Tanh()
         )
 
+        """"
+        self.p_x_mean =  nn.Sequential(
+            nn.Linear(self.hidden_dims,)
+        )
+            
+            Linear(self.hidden_dims, self.latent_dims)
+        self.p_x_logvar = NonLinear(100, np.prod(self.input_size),
+        #                            activation=nn.Hardtanh(min_val=-4.5, max_val=0))
+        
+        """
+
         if self.prior == 'vamp':
 
             self.K = 200  # nbr of psudo inputs/components
@@ -70,12 +81,44 @@ class VAE_model(nn.Module):
         return mu, logvar
 
     def decode(self, x):
-        return self.decoder(x)
+        z = self.decoder(x)
+        x_mean = self.p_x_mean(z)
+        x_mean = torch.clamp(x_mean, min=0. + 1. / 512., max=1. - 1. / 512.)
+        x_logvar = self.p_x_logvar(z)
+
+        return x_mean, x_logvar, z
 
     def reparametrization(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return eps * std + mu
+
+    #! Their code
+    #!#######################################################
+    def log_Logistic_256(x, mean, logvar, average=False, reduce=True, dim=None):
+        bin_size = 1. / 256.
+
+        # implementation like https://github.com/openai/iaf/blob/master/tf_utils/distributions.py#L28
+        scale = torch.exp(logvar)
+        x = (torch.floor(x / bin_size) * bin_size - mean) / scale
+        cdf_plus = torch.sigmoid(x + bin_size / scale)
+        cdf_minus = torch.sigmoid(x)
+
+        # calculate final log-likelihood for an image
+        log_logist_256 = - torch.log(cdf_plus - cdf_minus + 1.e-7)
+
+        return torch.sum(log_logist_256, dim)
+
+    # THE MODEL: GENERATIVE DISTRIBUTION
+    def p_x(self, z):
+        z = self.decoder(z)
+
+        x_mean = self.p_x_mean(z)
+        x_mean = torch.clamp(x_mean, min=0. + 1. / 512., max=1. - 1. / 512.)
+        x_logvar = self.p_x_logvar(z)
+        return x_mean, x_logvar
+
+    #!#######################################################
 
     def get_loss(self, data, beta=0.7, choice_of_prior='standard'):
         """
@@ -85,16 +128,19 @@ class VAE_model(nn.Module):
         In variational autoencoders, the loss function is composed of a reconstruction term 
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
-        reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
+        x_mean,x_logvar,reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
         # plt.imshow(data[0].reshape(28, 28))
         # plt.show()
         # plt.imshow(reconstruction[0].detach().numpy().reshape(28, 28))
         # plt.show()
 
+
+
         # compute reconstruction error
         loss = nn.MSELoss(reduction='sum')
         recon_error = loss(reconstruction, true_input)  # temp
 
+        recon_error = -self.log_Logistic_256(data, x_mean, x_logvar, dim=1)
 
         p_z = self.get_z_prior(z_sample=z_sample, dim=1)
         q_z = torch.sum(-0.5 * (z_lvar + torch.pow(z_sample - z_mu, 2) / torch.exp(z_lvar)),
@@ -109,7 +155,7 @@ class VAE_model(nn.Module):
         are only left with the logs in the KL'''
         KL = - (p_z - q_z)
 
-        loss = recon_error/300 + beta * KL
+        loss = recon_error + beta * KL
         loss = torch.mean(loss)
         recon_error = torch.mean(recon_error)
         KL = torch.mean(KL)
@@ -175,10 +221,6 @@ class VAE_model(nn.Module):
     def GM_prior(self,z):
         """Here we implement the guassian mixture prior"""
         K = self.psudo_input_size #same idea as vamp
-
-
-
-
         pass
 
 
