@@ -28,10 +28,10 @@ args = {
 def run_experiment(args):
     # load data
     train_loader, val_loader, test_loader, input_size = load_dataset(args)
-
+    args['input_size'] = input_size
     run_name = '{}_{}_{}_{}'.format(args['dataset'], args['prior'], args['psudo_inp'], args['latent_dims'])
     model_name = run_name + '.model'
-    model = VAE_model(input_size=input_size[1], args=args)
+    model = VAE_model(input_size=input_size[0] * input_size[1], args=args)
 
     # create log directory
     if os.path.exists(run_name):
@@ -58,7 +58,7 @@ def run_experiment(args):
         for epoch in range(1, args['epochs'] + 1):
             start = time.time()
             model, tr_loss_e, tr_re_e, tr_kl_e = train_loop(train_loader=train_loader, model=model, optimizer=optimizer, writer=writer, epoch=epoch)
-            val_loss_e, val_re_e, val_kl_e = val_loop(val_loader, model, writer, epoch, plot=True, directory=run_name + '/')
+            val_loss_e, val_re_e, val_kl_e = val_loop(val_loader, model, writer, epoch, plot=True, directory=run_name + '/', args=args)
 
             train_loss_history.append(tr_loss_e)
             train_re_history.append(tr_re_e)

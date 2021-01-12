@@ -46,7 +46,7 @@ def train_loop(train_loader, model, optimizer, writer, epoch):
     return model, train_loss, train_re, train_kl
 
 
-def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
+def val_loop(val_loader, model, writer, epoch, plot=False, directory='', args=None):
     # set loss to 0
     val_loss = 0
     val_re = 0
@@ -72,9 +72,9 @@ def val_loop(val_loader, model, writer, epoch, plot=False, directory=''):
             if epoch == 1:
                 if not os.path.exists(directory + 'reconstruction/'):
                     os.makedirs(directory + 'reconstruction/')
-                plot_images(x.cpu().detach().numpy()[:9], directory + 'reconstruction/', 'real')
+                plot_images(x.cpu().detach().numpy()[:9], directory + 'reconstruction/', 'real', img_size=args['input_size'])
             reconstruction = model.reconstruct(x)
-            plot_images(reconstruction.cpu().detach().numpy()[:9], directory + 'reconstruction/', str(epoch))
+            plot_images(reconstruction.cpu().detach().numpy()[:9], directory + 'reconstruction/', str(epoch), img_size=args['input_size'])
     writer.flush()
 
     # calculate final loss
@@ -95,13 +95,13 @@ def test_loop(test_loader, model, args, directory=''):
 
     print('Plot real images, reconstructions and sampled images')
     reconstruction = model.reconstruct(test_data[:25])
-    plot_images(test_data[:25].cpu().detach().numpy(), directory + 'test_img/', 'real_test', size_x=5, size_y=5)
-    plot_images(reconstruction.cpu().detach().numpy(), directory + 'test_img/', 'reconstruction_test', size_x=5, size_y=5)
+    plot_images(test_data[:25].cpu().detach().numpy(), directory + 'test_img/', 'real_test', size_x=5, size_y=5, img_size=args['input_size'])
+    plot_images(reconstruction.cpu().detach().numpy(), directory + 'test_img/', 'reconstruction_test', size_x=5, size_y=5, img_size=args['input_size'])
     sampled = model.sample(25)
-    plot_images(sampled.cpu().detach().numpy(), directory + 'test_img/', 'sampled', size_x=5, size_y=5)
+    plot_images(sampled.cpu().detach().numpy(), directory + 'test_img/', 'sampled', size_x=5, size_y=5, img_size=args['input_size'])
     if args['prior'] == 'vamp':
         pseudo_inputs = model.psudo_mapper(model.pseudo_input)
-        plot_images(pseudo_inputs[:25].cpu().detach().numpy(), directory + 'test_img/', 'pseudoinputs', size_x=5, size_y=5)
+        plot_images(pseudo_inputs[:25].cpu().detach().numpy(), directory + 'test_img/', 'pseudoinputs', size_x=5, size_y=5, img_size=args['input_size'])
 
 
     ll_test_start = time.time()
@@ -128,7 +128,7 @@ def log_Normal_standard(x, average=False, dim=None):
 
 
 
-def plot_images(x_sample, directory, name, size_x=3, size_y=3):
+def plot_images(x_sample, directory, name, size_x=3, size_y=3, img_size=[28, 28]):
 
     fig = plt.figure(figsize=(size_x, size_y))
     gs = gridspec.GridSpec(size_x, size_y)
@@ -140,8 +140,8 @@ def plot_images(x_sample, directory, name, size_x=3, size_y=3):
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.set_aspect('equal')
-        sample = sample.reshape((28, 28)) # for freyfaces it should be 28, 20
-        plt.imshow(sample)
+        sample = sample.reshape(img_size) # for freyfaces it should be 28, 20
+        plt.imshow(sample, cmap='gray')
 
     plt.savefig(directory + name + '.png', bbox_inches='tight')
     plt.close(fig)

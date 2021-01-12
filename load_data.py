@@ -51,7 +51,7 @@ def load_freyfaces(batch_size, train_size=1565, val_size=200, test_size=200):
     test = tud.TensorDataset(torch.from_numpy(x_test).float(), torch.from_numpy(y_test))
     test_loader = tud.DataLoader(test, batch_size=batch_size, shuffle=False)
 
-    return train_loader, val_loader, test_loader, [1, 560]
+    return train_loader, val_loader, test_loader, [28, 20]
 
 
 def load_omniglot(train_size=0.8):
@@ -60,7 +60,7 @@ def load_omniglot(train_size=0.8):
 
         # data characteristics
 
-    dataset_shape = [1, 28, 28]
+    dataset_shape = [28, 28]
     dataset_type = "binary"
 
     omni_mat = loadmat(os.path.join('data', 'chardata.mat'))
@@ -120,7 +120,7 @@ def load_dynamic_mnist(batch_size):
     test = tud.TensorDataset(torch.from_numpy(x_test).float(), torch.from_numpy(y_test))
     test_loader = tud.DataLoader(test, batch_size=batch_size, shuffle=False)
 
-    return train_loader, val_loader, test_loader, [1, 784]
+    return train_loader, val_loader, test_loader, [28, 28]
 
 
 def load_fashion_mnist(batch_size):
@@ -164,7 +164,7 @@ def load_fashion_mnist(batch_size):
     test = tud.TensorDataset(torch.from_numpy(x_test).float(), torch.from_numpy(y_test))
     test_loader = tud.DataLoader(test, batch_size=batch_size, shuffle=False)
 
-    return train_loader, val_loader, test_loader, [1, 784]
+    return train_loader, val_loader, test_loader, [28, 28]
 
 
 if __name__ == "__main__":
