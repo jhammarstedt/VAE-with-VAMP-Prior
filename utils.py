@@ -140,7 +140,7 @@ def plot_images(x_sample, directory, name, size_x=3, size_y=3):
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.set_aspect('equal')
-        sample = sample.reshape((28, 28))
+        sample = sample.reshape((28, 28)) # for freyfaces it should be 28, 20
         plt.imshow(sample)
 
     plt.savefig(directory + name + '.png', bbox_inches='tight')
