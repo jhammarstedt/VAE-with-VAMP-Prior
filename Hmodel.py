@@ -108,7 +108,7 @@ class VAE_model(nn.Module):
         z2_logvar = self.enc_z2_logvar(x)  # get the variance of the latent space w.r.t x
         return z2_mu, z2_logvar
     def encode_z1(self,x,x2):
-        #
+        pass
 
 
 
