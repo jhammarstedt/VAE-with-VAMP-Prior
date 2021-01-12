@@ -83,7 +83,7 @@ class VAE_model(nn.Module):
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    # ! Their code
+    # ! Their code, not used
     # !#######################################################
     def log_Logistic_256(self,x, mean, logvar, average=False, reduce=True, dim=None):
         bin_size = 1. / 256.
@@ -109,7 +109,7 @@ class VAE_model(nn.Module):
 
     # !#######################################################
 
-    def get_loss(self, data, beta=0.7, warmup=True):
+    def get_loss(self, data, beta=0.7):
         """
         Computes the VAE loss function.
 
@@ -117,7 +117,7 @@ class VAE_model(nn.Module):
         In variational autoencoders, the loss function is composed of a reconstruction term 
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
-        x_mean, x_logvar, reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
+        _, _, reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
 
         # compute reconstruction error
         loss = nn.MSELoss(reduction='sum')
