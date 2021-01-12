@@ -38,6 +38,10 @@ def run_experiment(args):
         shutil.rmtree(run_name)
     os.mkdir(run_name)
 
+    log_file = run_name + '/results.txt'
+    with open(log_file, 'a') as f:
+        print(args, file=f)
+    print(args)
     if args['train']:
         optimizer = Adam(model.parameters(), lr=args['lr'])
         writer = SummaryWriter()
@@ -64,7 +68,13 @@ def run_experiment(args):
             val_re_history.append(val_re_e)
             val_kl_history.append(val_kl_e)
             end = time.time()
-            print("Epoch {}\ttime {:.2f}s,\t train_loss: {:.2f}\t(RL = {:.2f},\tKL: {:.2f})\t val_loss {:.2f}\t(RL = {:.2f},\tKL: {:.2f})".format(epoch, end - start, tr_loss_e, tr_re_e, tr_kl_e, val_loss_e, val_re_e, val_kl_e))
+            print(
+                "Epoch {}\ttime {:.2f}s,\t train_loss: {:.2f}\t(RL = {:.2f},\tKL: {:.2f})\t val_loss {:.2f}\t(RL = {:.2f},\tKL: {:.2f})".format(
+                    epoch, end - start, tr_loss_e, tr_re_e, tr_kl_e, val_loss_e, val_re_e, val_kl_e))
+
+            with open(log_file, 'a') as f:
+                print("Epoch {}\ttime {:.2f}s,\t train_loss: {:.2f}\t(RL = {:.2f},\tKL: {:.2f})\t val_loss {:.2f}\t(RL = {:.2f},\tKL: {:.2f})".format(epoch, end - start, tr_loss_e, tr_re_e, tr_kl_e, val_loss_e, val_re_e, val_kl_e), file=f)
+
             if val_loss_e < best_val_loss:
                 best_val_loss = val_loss_e
                 print('Saving model with {} validation loss'.format(best_val_loss))
@@ -75,8 +85,11 @@ def run_experiment(args):
     if args['test']:
         os.mkdir(run_name + '/test_img/')
         model.load_state_dict(torch.load(run_name + '/' + model_name))
-        test_loop(test_loader, model, args, directory=run_name + '/')
+        ll_test = test_loop(test_loader, model, args, directory=run_name + '/')
+        with open(log_file, 'a') as f:
+            print('Model Log-likelihood on test set is {}'.format(ll_test), file=f)
 
+    shutil.make_archive(run_name, 'tar', run_name)
     return model
 
 
