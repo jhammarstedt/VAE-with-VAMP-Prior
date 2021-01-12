@@ -102,12 +102,13 @@ class VAE_model(nn.Module):
                 he_init(m)
 
     def encode_z2(self, x): ### CHECK
+        """First encoding for z2"""
         x = self.encoder_z2(x)  # encode the data to reduce dimensionality
         z2_mu = self.enc_z2_mu(x)  # get the expected value in the latent space w.r.t x
         z2_logvar = self.enc_z2_logvar(x)  # get the variance of the latent space w.r.t x
         return z2_mu, z2_logvar
     def encode_z1(self,x,x2):
-        
+        #
 
 
 

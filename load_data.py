@@ -49,7 +49,7 @@ def load_omniglot(train_size=0.8):
     x_train, x_valu = np.split(train_data, [ceil(train_size * len(train_data)), len(train_data)])
 
     # Pytorch specifies
-    train_td = tud.TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train))
+    #train_td = tud.TensorDataset(torch.from_numpy(x_train), torch.from_numpy(y_train))
 
 
 def load_dynamic_mnist(batch_size, **kwargs):
