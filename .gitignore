@@ -129,8 +129,8 @@ dmypy.json
 .pyre/
 
 #ignore data folder
-data/
-
+data/*
+!data/freyfaces.pkl
 runs/
 
 .idea/*

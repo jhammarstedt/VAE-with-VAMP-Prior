@@ -19,7 +19,7 @@ args = {
     'input_type': 'continuous',  # ['binary','continuous']
     'prior': 'vamp',  # ['vamp','standard']
     'psudo_inp': 200,  # ignore if standard
-    'dataset': 'dynamicMnist',  # ['dynamicMnist', 'fashionMnist', 'omniglot']
+    'dataset': 'dynamicMnist',  # ['dynamicMnist', 'fashionMnist', 'freyfaces']
     'train': True,
     'test': True,
 }
@@ -28,16 +28,20 @@ args = {
 def run_experiment(args):
     # load data
     train_loader, val_loader, test_loader, input_size = load_dataset(args)
-
+    args['input_size'] = input_size
     run_name = '{}_{}_{}_{}'.format(args['dataset'], args['prior'], args['psudo_inp'], args['latent_dims'])
     model_name = run_name + '.model'
-    model = VAE_model(input_size=input_size[1], args=args)
+    model = VAE_model(input_size=input_size[0] * input_size[1], args=args)
 
     # create log directory
     if os.path.exists(run_name):
         shutil.rmtree(run_name)
     os.mkdir(run_name)
 
+    log_file = run_name + '/results.txt'
+    with open(log_file, 'a') as f:
+        print(args, file=f)
+    print(args)
     if args['train']:
         optimizer = Adam(model.parameters(), lr=args['lr'])
         writer = SummaryWriter()
@@ -54,7 +58,7 @@ def run_experiment(args):
         for epoch in range(1, args['epochs'] + 1):
             start = time.time()
             model, tr_loss_e, tr_re_e, tr_kl_e = train_loop(train_loader=train_loader, model=model, optimizer=optimizer, writer=writer, epoch=epoch)
-            val_loss_e, val_re_e, val_kl_e = val_loop(val_loader, model, writer, epoch, plot=True, directory=run_name + '/')
+            val_loss_e, val_re_e, val_kl_e = val_loop(val_loader, model, writer, epoch, plot=True, directory=run_name + '/', args=args)
 
             train_loss_history.append(tr_loss_e)
             train_re_history.append(tr_re_e)
@@ -64,7 +68,13 @@ def run_experiment(args):
             val_re_history.append(val_re_e)
             val_kl_history.append(val_kl_e)
             end = time.time()
-            print("Epoch {}\ttime {:.2f}s,\t train_loss: {:.2f}\t(RL = {:.2f},\tKL: {:.2f})\t val_loss {:.2f}\t(RL = {:.2f},\tKL: {:.2f})".format(epoch, end - start, tr_loss_e, tr_re_e, tr_kl_e, val_loss_e, val_re_e, val_kl_e))
+            print(
+                "Epoch {}\ttime {:.2f}s,\t train_loss: {:.2f}\t(RL = {:.2f},\tKL: {:.2f})\t val_loss {:.2f}\t(RL = {:.2f},\tKL: {:.2f})".format(
+                    epoch, end - start, tr_loss_e, tr_re_e, tr_kl_e, val_loss_e, val_re_e, val_kl_e))
+
+            with open(log_file, 'a') as f:
+                print("Epoch {}\ttime {:.2f}s,\t train_loss: {:.2f}\t(RL = {:.2f},\tKL: {:.2f})\t val_loss {:.2f}\t(RL = {:.2f},\tKL: {:.2f})".format(epoch, end - start, tr_loss_e, tr_re_e, tr_kl_e, val_loss_e, val_re_e, val_kl_e), file=f)
+
             if val_loss_e < best_val_loss:
                 best_val_loss = val_loss_e
                 print('Saving model with {} validation loss'.format(best_val_loss))
@@ -75,8 +85,11 @@ def run_experiment(args):
     if args['test']:
         os.mkdir(run_name + '/test_img/')
         model.load_state_dict(torch.load(run_name + '/' + model_name))
-        test_loop(test_loader, model, args, directory=run_name + '/')
+        ll_test = test_loop(test_loader, model, args, directory=run_name + '/')
+        with open(log_file, 'a') as f:
+            print('Model Log-likelihood on test set is {}'.format(ll_test), file=f)
 
+    shutil.make_archive(run_name, 'tar', run_name)
     return model
 
 
