@@ -4,7 +4,7 @@ import torch
 from torch.optim import Adam
 from utils import train_loop, val_loop, test_loop
 from torch.utils.tensorboard import SummaryWriter
-
+from Hmodel import HVAE_model
 import time
 import os
 import shutil
@@ -22,6 +22,7 @@ args = {
     'dataset': 'dynamicMnist',  # ['dynamicMnist', 'fashionMnist', 'freyfaces']
     'train': True,
     'test': True,
+    'Hmodel':False, #Use the hierarcal model or not
 }
 
 
@@ -31,7 +32,10 @@ def run_experiment(args):
     args['input_size'] = input_size
     run_name = '{}_{}_{}_{}'.format(args['dataset'], args['prior'], args['psudo_inp'], args['latent_dims'])
     model_name = run_name + '.model'
-    model = VAE_model(input_size=input_size[0] * input_size[1], args=args)
+    if args['Hmodel']:
+        model = HVAE_model(input_size=input_size[0] * input_size[1], args=args)
+    else:
+        model = VAE_model(input_size=input_size[0] * input_size[1], args=args)
 
     # create log directory
     if os.path.exists(run_name):

@@ -3,9 +3,9 @@ from scipy.special import logsumexp
 import math
 
 
-class VAE_model(nn.Module):
+class HVAE_model(nn.Module):
     def __init__(self, input_size: int, args: dict):
-        super(VAE_model, self).__init__()
+        super(HVAE_model, self).__init__()
         self.input_size = input_size
         self.hidden_dims = args['hidden_dims']
         self.latent_dims = args['latent_dims']
@@ -39,7 +39,7 @@ class VAE_model(nn.Module):
         the distribution on z1
         """
 
-        #Encoding for x looks similar to the z2
+        # Encoding for x looks similar to the z2
         self.encoder_z1_x = nn.Sequential(
             nn.Linear(self.input_size, self.hidden_dims),
             nn.Tanh(),
@@ -48,22 +48,25 @@ class VAE_model(nn.Module):
         )
 
         self.encoder_z1_z2 = nn.Sequential(
-            nn.Linear(self.hidden_dims, self.hidden_dims), #z2 will have shape (hidden_dims,hidden_dims)
+            nn.Linear(self.latent_dims, self.hidden_dims),  # z2 will have shape (hidden_dims,hidden_dims)
             nn.Tanh(),
-            nn.Linear(self.hidden_dims, self.hidden_dims), #we use the same structure for the hidden dims here
+            nn.Linear(self.hidden_dims, self.hidden_dims),  # we use the same structure for the hidden dims here
             nn.Tanh(),
         )
 
         self.encoder_z1_joint = nn.Sequential(
-            nn.Linear(self.hidden_dims *2, self.hidden_dims), # Here we will pass both encoding on x and z2 for z1 as inputs
+            nn.Linear(self.hidden_dims * 2, self.hidden_dims),
+            # Here we will pass both encoding on x and z2 for z1 as inputs
             nn.Tanh(),
-            nn.Linear(self.hidden_dims, self.hidden_dims), # Encode them to match the hidden dims
+            nn.Linear(self.hidden_dims, self.hidden_dims),  # Encode them to match the hidden dims
             nn.Tanh(),
         )
 
-
-
-
+        self.enc_z1_mu = nn.Linear(self.hidden_dims, self.latent_dims)
+        self.enc_z1_logvar = nn.Sequential(
+            nn.Linear(self.hidden_dims, self.latent_dims),
+            nn.Hardtanh(min_val=-6., max_val=2.)
+        )
         ####### End of Encoding############
 
         ###### Decoding ##################
@@ -101,14 +104,24 @@ class VAE_model(nn.Module):
             if isinstance(m, nn.Linear):
                 he_init(m)
 
-    def encode_z2(self, x): ### CHECK
+    def encode_z2(self, x):  ### CHECK
         """First encoding for z2"""
         x = self.encoder_z2(x)  # encode the data to reduce dimensionality
         z2_mu = self.enc_z2_mu(x)  # get the expected value in the latent space w.r.t x
         z2_logvar = self.enc_z2_logvar(x)  # get the variance of the latent space w.r.t x
         return z2_mu, z2_logvar
-    def encode_z1(self,x,x2):
-        pass
+
+    def encode_z1(self, x, z2):
+        z1_x = self.encoder_z1_x(x)  # encoding given x
+        z1_z2 = self.encoder_z1_z2(z2)  # encoding given z2
+
+        merged_z2_x = torch.cat((z1_x,z1_z2), 1) #concatenate the tensors to fit them for the joint
+
+        z1_joint = self.encoder_z1_joint(merged_z2_x)  #merge them
+        z1_mean = self.enc_z1_mu(z1_joint)
+        z1_logvar= self.enc_z1_logvar(z1_joint)
+
+        return z1_mean, z1_logvar
 
 
 
@@ -159,7 +172,10 @@ class VAE_model(nn.Module):
         In variational autoencoders, the loss function is composed of a reconstruction term
         (that makes the encoding-decoding scheme efficient) and a regularisation term (that makes the latent space regular).
         """
-        _, _, reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
+        #_, _, reconstruction, true_input, z_mu, z_lvar, z_sample = self.forward(data)
+
+        x_mean, x_logvar, reconstruction, true_input, z_sample, q_z1_mu, q_z1_logvar, z2_sample, q_z2_mu, q_z2_logvar= self.forward(data)
+
 
         # compute reconstruction error
         loss = nn.MSELoss(reduction='sum')
@@ -267,12 +283,12 @@ class VAE_model(nn.Module):
     def forward(self, x):
         # q(z2|x)
         """Get the first layer of z2 conditional on x which we later will use to get z1"""
-        q_z2_mu, q_z2_logvar = self.encoder_Z2(x)
+        q_z2_mu, q_z2_logvar = self.encode_z2(x)
         z2_sample = self.reparametrization(q_z2_mu, q_z2_logvar)
 
         # q(z1|x,z1)
         """The second layer of z, conditioned on both x and z1"""
-        q_z1_mu, q_z1_logvar = self.encoder_Z1(x, z2_sample)
+        q_z1_mu, q_z1_logvar = self.encode_z1(x, z2_sample)
         z1_sample = self.reparametrization(q_z1_mu, q_z1_logvar)
 
         # ? why do we need z1_p_mean and var
