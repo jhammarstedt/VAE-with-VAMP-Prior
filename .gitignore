@@ -136,4 +136,5 @@ runs/
 .idea/*
 
 reconstruction/
-/vae_vampprior-master/
+original_code
+vae_vampprior-master/*
