@@ -1,2 +1,11 @@
-# MLA_VAE_Vamp
-MLA Group Project: VAE with a VampPrior
+# Variational Autoencoder with Vamp-Prior
+
+## Authors ## 
+* Johan Hammarstedt, Github: [jhammarstedt](https://github.com/jhammarstedt)
+* Matej Sestak, Github : [sestys](https://github.com/sestys)
+* Lucas Alva Pena, Github> [lucasalvapena](https://github.com/lucasalavapena)
+
+## Outline
+Project for the Advanced Machine Learning Course given at KTH fall 2020.
+
+Re-implemented the paper [VAE with a VampPrior](https://arxiv.org/abs/1705.07120) by Jakub M. Tomczak and Max Welling where we train a Variational Autoencoder with learnable psudo-inputs that shape the prior distribution used by in the encoder-decoder framework.
