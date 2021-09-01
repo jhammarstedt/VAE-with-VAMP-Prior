@@ -1,4 +1,4 @@
-# Variational Autoencoder with Vamp-
+# Variational Autoencoder with Vamp- Prior
 Project for the Advanced Machine Learning Course given at KTH fall 2020.
 ## Authors ## 
 * Johan Hammarstedt, Github: [jhammarstedt](https://github.com/jhammarstedt)
